@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { imageUrl } from './siteSettings.schema.js';
+
 // URL-safe, hyphen-separated slug — becomes the public URL /lp/<slug>.
 // Lowercased/trimmed so "Summer-Deal" and " summer-deal " collide as the
 // same slug rather than creating two documents.
@@ -37,7 +39,7 @@ export const createLandingPageSchema = z.object({
     isPublished: z.boolean().optional().default(false),
     seoTitle: z.string().max(200).optional(),
     seoDescription: z.string().max(300).optional(),
-    ogImage: z.string().url().or(z.literal('')).optional(),
+    ogImage: imageUrl.optional(),
 });
 
 // Partial for updates — every field optional. `slug` stays editable (an
@@ -50,7 +52,7 @@ export const updateLandingPageSchema = z.object({
     isPublished: z.boolean().optional(),
     seoTitle: z.string().max(200).optional(),
     seoDescription: z.string().max(300).optional(),
-    ogImage: z.string().url().or(z.literal('')).optional(),
+    ogImage: imageUrl.optional(),
 });
 
 export const listLandingPageQuerySchema = z.object({

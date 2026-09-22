@@ -10,7 +10,10 @@ export const SITE_URL = (
 // URLs (http/https) and protocol-relative URLs are returned untouched.
 export const absoluteUrl = (path = "") => {
     if (!path) return SITE_URL;
-    if (/^https?:\/\//i.test(path) || path.startsWith("//")) return path;
+    // Protocol-relative ("//host/x.png") is deliberately NOT passed through: it would let a
+    // stored value point og:image or the logo at a third-party host. The settings schema
+    // rejects it too, so this is the second line of defence.
+    if (/^https?:\/\//i.test(path)) return path;
     return `${SITE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
 };
 

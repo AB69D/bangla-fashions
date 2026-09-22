@@ -37,9 +37,11 @@ export async function generateMetadata() {
     `${siteName} is a Bangladeshi clothing brand — t-shirts, polo shirts, fotua, panjabi, shirts, pants and women's & kids' wear delivered across Bangladesh.`;
   const ogImage = absoluteUrl(seo.ogImage || settings?.logoUrl || "/logo.png");
   // Browser-tab + iOS home-screen icons follow the admin logo: favicon first,
-  // then the company logo, and only then the bundled placeholder.
-  const favicon = settings?.faviconUrl || settings?.logoUrl || "/icons/icon-192.png";
-  const appleIcon = settings?.faviconUrl || settings?.logoUrl || "/icons/apple-touch-icon.png";
+  // then the company logo, and only then the bundled placeholder. Uploads are
+  // stored site-relative (/uploads/...) and Next does not resolve icon hrefs
+  // against metadataBase the way it does openGraph/twitter, so absolutise here.
+  const favicon = absoluteUrl(settings?.faviconUrl || settings?.logoUrl || "/icons/icon-192.png");
+  const appleIcon = absoluteUrl(settings?.faviconUrl || settings?.logoUrl || "/icons/apple-touch-icon.png");
 
   return {
     metadataBase: new URL(SITE_URL),

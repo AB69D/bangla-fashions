@@ -295,7 +295,24 @@ export default function Footer() {
                                 `© ${new Date().getFullYear()} ${settings.siteName}. All rights reserved.`}
                         </p>
                         <p className="font-medium">
-                            <span className="text-red-300">Developed by Md Manzurul Islam</span>
+                            Developed by{" "}
+                            <a
+                                href="https://www.linkedin.com/in/ab9d/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-red-300 underline-offset-4 hover:underline"
+                            >
+                                Md Manzurul Islam
+                            </a>
+                        </p>
+                        <p className="mt-1 text-xs opacity-80">
+                            Contact mail{" "}
+                            <a
+                                href="mailto:khanabid7474@gmail.com"
+                                className="underline-offset-4 hover:underline"
+                            >
+                                khanabid7474@gmail.com
+                            </a>
                         </p>
                     </div>
                 </div>

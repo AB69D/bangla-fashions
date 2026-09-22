@@ -1,7 +1,28 @@
 import { z } from 'zod';
 
+// Shared by every uploadable image field (logo, favicon, og:image) here and in
+// landingPage.schema.js. Images used to live on Cloudinary and were always
+// absolute; they now sit on the VPS disk and the upload middleware hands back a
+// site-relative path like /uploads/2026/09/<uuid>.webp, so both forms must pass.
+// A relative value has to start with exactly ONE slash: `//evil.example.com/x.png`
+// is protocol-relative and a browser would load it from that third-party host,
+// which is how someone would swap out the site's logo or og:image. Backslashes
+// and `..` segments are refused too so a path can never climb out of /uploads.
+const isImageLocation = (value) => {
+    if (value === '') return true; // empty clears the field
+    if (value.includes('\\')) return false;
+    if (/(?:^|\/)\.\.(?:\/|$)/.test(value)) return false;
+    if (/^https?:\/\//i.test(value)) return z.string().url().safeParse(value).success;
+    return /^\/(?!\/)/.test(value);
+};
+
+export const imageUrl = z
+    .string()
+    .refine(isImageLocation, 'Must be an http(s) URL or an uploaded path like /uploads/2026/09/image.webp');
+
 const socialLink = z.object({
     platform: z.string().min(1),
+    // Social profiles are genuinely off-site, so these stay strictly absolute.
     url: z.string().url(),
     icon: z.string().optional(),
 });
@@ -151,8 +172,8 @@ export const updateSiteSettingsSchema = z.object({
     siteName: z.string().min(1).max(100).optional(),
     tagline: z.string().max(200).optional(),
     description: z.string().max(500).optional(),
-    logoUrl: z.string().url().or(z.literal('')).optional(),
-    faviconUrl: z.string().url().or(z.literal('')).optional(),
+    logoUrl: imageUrl.optional(),
+    faviconUrl: imageUrl.optional(),
     contactEmail: z.string().email().or(z.literal('')).optional(),
     contactPhone: z.string().max(50).optional(),
     contactAddress: z.string().max(500).optional(),
@@ -164,7 +185,7 @@ export const updateSiteSettingsSchema = z.object({
             defaultTitle: z.string().optional(),
             defaultDescription: z.string().optional(),
             defaultKeywords: z.string().optional(),
-            ogImage: z.string().url().or(z.literal('')).optional(),
+            ogImage: imageUrl.optional(),
         })
         .partial()
         .optional(),
