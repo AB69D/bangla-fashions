@@ -240,10 +240,10 @@ function Navbar() {
                         {/* CENTER ZONE — the brand mark is green and so is the navbar, so the
                             logo sits on a white square plate to stay legible, with the site name
                             beside it. A skeleton holds the space until the logo has decoded. */}
-                        <div className="flex-shrink-0 px-2 sm:px-4">
+                        <div className="min-w-0 px-1.5 sm:px-4">
                             <Link
                                 href="/"
-                                className="flex items-center gap-2 sm:gap-3"
+                                className="flex items-center gap-1.5 sm:gap-3 min-w-0"
                                 aria-label={`${branding.siteName} home`}
                             >
                                 {(!brandingLoaded || (branding.logoUrl && !logoReady)) && (
@@ -265,8 +265,15 @@ function Navbar() {
                                         />
                                     </div>
                                 )}
-                                <span className="text-base sm:text-lg lg:text-xl font-bold leading-tight tracking-tight text-white whitespace-nowrap [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.25))]">
-                                    {branding.siteName}
+                                {/* Stacked, one word per line, at every width: it reads as a
+                                    wordmark beside the logo plate, and on phones a single line
+                                    would overflow the centre zone into the search and cart icons. */}
+                                <span className="font-bold tracking-tight text-white leading-[1.08] text-[13px] sm:text-[15px] lg:text-lg [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.25))]">
+                                    {branding.siteName.split(" ").map((word, i) => (
+                                        <span key={i} className="block">
+                                            {word}
+                                        </span>
+                                    ))}
                                 </span>
                             </Link>
                         </div>
