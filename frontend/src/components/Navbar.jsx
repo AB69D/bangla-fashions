@@ -237,36 +237,37 @@ function Navbar() {
                             </div>
                         </div>
 
-                        {/* CENTER ZONE — logo sits directly on the gradient (no white box);
-                            a skeleton holds the space until the real logo has decoded. */}
+                        {/* CENTER ZONE — the brand mark is green and so is the navbar, so the
+                            logo sits on a white square plate to stay legible, with the site name
+                            beside it. A skeleton holds the space until the logo has decoded. */}
                         <div className="flex-shrink-0 px-2 sm:px-4">
-                            <Link href="/" className="flex items-center" aria-label={`${branding.siteName} home`}>
-                                <div className="relative h-9 w-28 sm:h-11 sm:w-40 lg:h-12 lg:w-48 flex items-center">
-                                    {(!brandingLoaded || (branding.logoUrl && !logoReady)) && (
-                                        <div className="absolute inset-0 rounded-lg bg-white/20 animate-pulse" />
-                                    )}
-                                    {brandingLoaded && branding.logoUrl && (
+                            <Link
+                                href="/"
+                                className="flex items-center gap-2 sm:gap-3"
+                                aria-label={`${branding.siteName} home`}
+                            >
+                                {(!brandingLoaded || (branding.logoUrl && !logoReady)) && (
+                                    <div className="flex-shrink-0 h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 rounded-xl bg-white/30 animate-pulse" />
+                                )}
+                                {brandingLoaded && branding.logoUrl && (
+                                    <div className="relative flex-shrink-0 h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 rounded-xl bg-white shadow-md ring-1 ring-black/10">
                                         <Image
                                             key={branding.logoUrl}
                                             src={branding.logoUrl}
                                             alt={`${branding.siteName} Logo`}
                                             fill
-                                            sizes="(max-width: 640px) 112px, (max-width: 1024px) 160px, 192px"
-                                            className={`object-contain object-center transition-opacity duration-300 [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.25))] ${logoReady ? "opacity-100" : "opacity-0"}`}
+                                            sizes="(max-width: 640px) 40px, (max-width: 1024px) 48px, 56px"
+                                            className={`object-contain object-center p-1.5 transition-opacity duration-300 ${logoReady ? "opacity-100" : "opacity-0"}`}
                                             priority
                                             unoptimized
                                             onLoad={() => setLogoReady(true)}
                                             onError={() => setLogoReady(true)}
                                         />
-                                    )}
-                                    {/* No logo configured in the admin panel — show the site name
-                                        instead of falling back to a leftover brand's placeholder. */}
-                                    {brandingLoaded && !branding.logoUrl && (
-                                        <span className="text-lg sm:text-xl font-bold text-white truncate [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.25))]">
-                                            {branding.siteName}
-                                        </span>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
+                                <span className="text-base sm:text-lg lg:text-xl font-bold leading-tight tracking-tight text-white whitespace-nowrap [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.25))]">
+                                    {branding.siteName}
+                                </span>
                             </Link>
                         </div>
 
