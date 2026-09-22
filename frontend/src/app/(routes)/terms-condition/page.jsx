@@ -1,8 +1,8 @@
 import { fetchPage } from "@/lib/dynamicContent";
 import CmsArticle from "@/components/CmsArticle";
 
-const DEFAULT_TITLE = "Terms & Conditions | Ab9dEcommerce";
-const DEFAULT_DESCRIPTION = "Read the Terms & Conditions for using Ab9dEcommerce's website and services. Learn about our policies, user responsibilities, and legal agreements.";
+const DEFAULT_TITLE = "Terms & Conditions | Bangla Fashions";
+const DEFAULT_DESCRIPTION = "Read the Terms & Conditions for shopping with Bangla Fashions — orders, pricing in BDT, payment, delivery, sizing, returns and the legal terms that apply to your purchase.";
 
 // Reads the admin-saved SEO title/description for this page (Pages editor)
 // and falls back to the built-in defaults above when no override is set.
@@ -13,12 +13,12 @@ export async function generateMetadata() {
     return {
         title,
         description,
-        keywords: "terms and conditions, Ab9dEcommerce terms, user agreement, service terms, e-commerce policy",
+        keywords: "terms and conditions, Bangla Fashions terms, user agreement, clothing order terms, online shopping Bangladesh",
         openGraph: {
             title,
             description,
-            url: "https://example.com/terms-condition",
-            siteName: "Ab9dEcommerce",
+            url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://example.com"}/terms-condition`,
+            siteName: "Bangla Fashions",
             type: "website"
         }
     };
@@ -33,7 +33,7 @@ export default async function TermsConditionPage() {
             <div className="bg-emerald-600 text-white py-16 px-4">
                 <div className="max-w-4xl mx-auto">
                     <h1 className="text-4xl md:text-5xl font-bold mb-4">Terms & Conditions</h1>
-                    <p className="text-lg opacity-90">Effective Date: April 8, 2026</p>
+                    <p className="text-lg opacity-90">Effective Date: 22 September 2026</p>
                 </div>
             </div>
 
@@ -45,10 +45,10 @@ export default async function TermsConditionPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">1</span>
-                                1. General Information
+                                General Information
                             </h2>
                             <p className="text-gray-700 leading-relaxed ml-11">
-                                This website is owned and operated by <span className="font-semibold">AB9DECOMMERCE</span>, located at: [Your Business Address]. By accessing this website and using our services, you agree to comply with and be bound by these Terms & Conditions.
+                                This website is owned and operated by <span className="font-semibold">BANGLA FASHIONS</span>, a traditional clothing brand trading in Sylhet, Bangladesh since 1 September 2007, retail and wholesale both, from three showrooms. Our main branch is at: Opposite of MM College Post Office, VIP Road, Lamabazar, Sylhet. By browsing this website, creating an account or placing an order, you agree to these Terms & Conditions.
                             </p>
                         </div>
 
@@ -56,15 +56,15 @@ export default async function TermsConditionPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">2</span>
-                                2. Eligibility
+                                Eligibility
                             </h2>
                             <p className="text-gray-700 leading-relaxed mb-4 ml-11">
                                 By using our services, you confirm that:
                             </p>
                             <ul className="list-disc list-inside text-gray-700 leading-relaxed space-y-2 ml-16">
-                                <li>You are at least 18 years of age.</li>
+                                <li>You are at least 18 years of age, or are ordering with the consent of a parent or guardian.</li>
                                 <li>You are legally capable of entering into binding agreements.</li>
-                                <li>All information provided during registration or checkout is accurate and complete.</li>
+                                <li>The name, phone number and delivery address you give us are accurate and reachable.</li>
                             </ul>
                         </div>
 
@@ -72,24 +72,31 @@ export default async function TermsConditionPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">3</span>
-                                3. Product Authenticity & Variations
+                                Sizing, Colour & Product Description
                             </h2>
-                            <p className="text-gray-700 leading-relaxed ml-11">
-                                AB9DECOMMERCE specializes in natural and products. Please note: Because our products are often sourced directly from villages and processed naturally, slight variations in color, texture, aroma, or packaging may occur. We strive for accuracy in product descriptions, but availability and specifications are subject to change without prior notice based on seasonal harvests.
+                            <p className="text-gray-700 leading-relaxed mb-4 ml-11">
+                                We publish a measurement chart for every garment. Please read it before ordering, as size labels differ from brand to brand. A few things worth knowing:
                             </p>
+                            <ul className="list-disc list-inside text-gray-700 leading-relaxed space-y-2 ml-16">
+                                <li>Garment measurements may vary by up to half an inch, which is normal in stitched clothing.</li>
+                                <li>Colours look different on different screens and under different lighting. Slight variation between the photo and the delivered item is not treated as a defect.</li>
+                                <li>Natural fabrics may show minor texture or weave variation from piece to piece.</li>
+                                <li>Stock, sizes and specifications can change without prior notice.</li>
+                            </ul>
                         </div>
 
                         {/* Section 4 */}
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">4</span>
-                                4. Pricing & Payment
+                                Pricing & Payment
                             </h2>
                             <ul className="list-disc list-inside text-gray-700 leading-relaxed space-y-3 ml-11">
-                                <li>All prices are listed in your local currency.</li>
-                                <li>Prices are subject to change without notice due to market fluctuations in sourcing.</li>
-                                <li>Payments must be made through our authorized channels: Cash on Delivery (COD), Mobile Banking (bKash, Nagad), or approved SSLCommerz gateways.</li>
-                                <li>AB9DECOMMERCE reserves the right to cancel orders and issue refunds in the event of technical pricing errors.</li>
+                                <li>All prices are listed in Bangladeshi Taka (BDT) and apply to orders delivered inside Bangladesh.</li>
+                                <li>Delivery charge is calculated at checkout and shown before you confirm the order.</li>
+                                <li>You can pay by Cash on Delivery (COD), or online through our SSLCommerz gateway using bKash, Nagad, or a debit or credit card.</li>
+                                <li>Prices and campaign offers may change at any time. The price that applies to your order is the price shown when the order is placed.</li>
+                                <li>BANGLA FASHIONS may cancel an order and refund any amount paid if a product was listed at an obviously incorrect price.</li>
                             </ul>
                         </div>
 
@@ -97,27 +104,33 @@ export default async function TermsConditionPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">5</span>
-                                5. Order Acceptance & Cancellation
+                                Order Acceptance & Cancellation
                             </h2>
                             <p className="text-gray-700 leading-relaxed mb-4 ml-11">
-                                We reserve the right to cancel or refuse any order for reasons including:
+                                An order is confirmed once our team verifies it by phone, SMS or email. We may cancel or refuse an order for reasons including:
                             </p>
                             <ul className="list-disc list-inside text-gray-700 leading-relaxed space-y-2 ml-16">
-                                <li>Product unavailability or stock depletion.</li>
-                                <li>Incomplete or unverifiable shipping addresses.</li>
-                                <li>Suspected fraudulent, unauthorized, or illegal activity.</li>
+                                <li>The size or colour you selected has gone out of stock.</li>
+                                <li>The delivery address is incomplete or the phone number cannot be reached.</li>
+                                <li>Suspected fraudulent, unauthorised or illegal activity.</li>
+                                <li>A history of refusing cash-on-delivery parcels at the door.</li>
                             </ul>
+                            <p className="text-gray-700 leading-relaxed mt-4 ml-11">
+                                You may cancel an order yourself at any time before it is handed to the courier. After dispatch, please use the returns process instead.
+                            </p>
                         </div>
 
                         {/* Section 6 */}
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">6</span>
-                                6. Shipping & Delivery
+                                Shipping & Delivery
                             </h2>
                             <ul className="list-disc list-inside text-gray-700 leading-relaxed space-y-3 ml-11">
-                                <li>Delivery timelines are estimates and vary based on the delivery location within your service area.</li>
-                                <li>Once a shipment is handed over to our third-party courier partners, AB9DECOMMERCE is not held liable for delays caused by the courier or external factors (e.g., weather or strikes).</li>
+                                <li>Delivery time depends on the courier and on the address, so we confirm the expected date with you when we confirm the order.</li>
+                                <li>You get a tracking number once the parcel is handed to the courier.</li>
+                                <li>Eid season, hartal, floods and other disruptions slow the couriers down, and any date we give you is an estimate rather than a guarantee.</li>
+                                <li>Once a parcel is handed over to our courier partner, delays caused by the courier or by conditions outside our control are not the liability of BANGLA FASHIONS. We will still help you trace the parcel.</li>
                             </ul>
                         </div>
 
@@ -125,15 +138,17 @@ export default async function TermsConditionPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">7</span>
-                                7. Returns, Refunds & Claims
+                                Returns, Exchanges & Refunds
                             </h2>
                             <p className="text-gray-700 leading-relaxed mb-4 ml-11">
-                                To maintain high standards of food hygiene, our return policy is as follows:
+                                In short, and in full on our Refund & Returns page:
                             </p>
+                            {/* Owner to confirm the real return window and damaged-item reporting window before launch, then state them here and on the Refund & Returns page. */}
                             <ul className="list-disc list-inside text-gray-700 leading-relaxed space-y-3 ml-16">
-                                <li>Returns are only accepted for Damaged, Defective, or Incorrect items.</li>
-                                <li><span className="font-semibold">Mandatory Requirement:</span> You must provide a clear unboxing video recorded at the time of delivery/opening to validate a claim. Without video proof, AB9DECOMMERCE reserves the right to reject refund or replacement requests.</li>
-                                <li>Issues must be reported to our customer service within 24 hours of receipt.</li>
+                                <li>If the fit is wrong, or the item is not the one you ordered, contact us with your order number and we will arrange an exchange or a return. Tell us as soon as the parcel arrives.</li>
+                                <li>The item must be unworn, unwashed, free of stains and odour, and still carry its original tags and packaging.</li>
+                                <li>Innerwear, customised or tailored pieces, and final clearance items cannot be returned.</li>
+                                <li>If the parcel arrives damaged, defective or containing the wrong item, open it in front of the delivery person where you can, and send us photos with your message so we can arrange a replacement or refund.</li>
                             </ul>
                         </div>
 
@@ -141,10 +156,10 @@ export default async function TermsConditionPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">8</span>
-                                8. Account Security
+                                Account Security
                             </h2>
                             <p className="text-gray-700 leading-relaxed ml-11">
-                                You are responsible for maintaining the confidentiality of your account password and activity. AB9DECOMMERCE reserves the right to suspend or terminate accounts that show suspicious or unauthorized behavior.
+                                You are responsible for keeping your account password and order history confidential. Tell us right away if you think someone else is using your account. BANGLA FASHIONS may suspend or close accounts that show suspicious or unauthorised behaviour.
                             </p>
                         </div>
 
@@ -152,15 +167,15 @@ export default async function TermsConditionPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">9</span>
-                                9. Prohibited Activities
+                                Prohibited Activities
                             </h2>
                             <p className="text-gray-700 leading-relaxed mb-4 ml-11">
                                 You are strictly prohibited from:
                             </p>
                             <ul className="list-disc list-inside text-gray-700 leading-relaxed space-y-2 ml-16">
-                                <li>Using this website for any fraudulent or harmful purposes.</li>
-                                <li>Attempting to hack, disrupt, or gain unauthorized access to our servers.</li>
-                                <li>Scraping or copying website content (images, text, or logos) for commercial use without our written consent.</li>
+                                <li>Using this website for any fraudulent or harmful purpose, including placing fake cash-on-delivery orders.</li>
+                                <li>Attempting to hack, disrupt, or gain unauthorised access to our servers.</li>
+                                <li>Scraping or copying website content (product photography, text or logos) for commercial use without our written consent.</li>
                             </ul>
                         </div>
 
@@ -168,10 +183,10 @@ export default async function TermsConditionPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">10</span>
-                                10. Intellectual Property
+                                Intellectual Property
                             </h2>
                             <p className="text-gray-700 leading-relaxed ml-11">
-                                All website content—including the AB9DECOMMERCE logo, product photography, graphics, and text—is the exclusive property of AB9DECOMMERCE. Unauthorized reproduction or distribution is strictly prohibited.
+                                All website content, including the BANGLA FASHIONS name and logo, our product photography, prints, embroidery artwork, graphics and text, is the property of BANGLA FASHIONS. Reselling our designs or reusing our photographs without written permission is not allowed.
                             </p>
                         </div>
 
@@ -179,26 +194,29 @@ export default async function TermsConditionPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">11</span>
-                                11. Limitation of Liability
+                                Limitation of Liability
                             </h2>
                             <p className="text-gray-700 leading-relaxed mb-4 ml-11">
-                                AB9DECOMMERCE shall not be held liable for:
+                                BANGLA FASHIONS shall not be held liable for:
                             </p>
                             <ul className="list-disc list-inside text-gray-700 leading-relaxed space-y-2 ml-16">
-                                <li>Indirect, incidental, or consequential damages arising from the use of our website.</li>
-                                <li>Delays caused by third-party delivery services.</li>
-                                <li>Misuse of products or failure to follow storage instructions provided on products.</li>
+                                <li>Indirect, incidental or consequential losses arising from the use of our website.</li>
+                                <li>Delays caused by courier partners, payment gateways or network outages.</li>
+                                <li>Damage to a garment caused by washing, drying or ironing against the instructions on its care label.</li>
                             </ul>
+                            <p className="text-gray-700 leading-relaxed mt-4 ml-11">
+                                Where we are liable, our responsibility is limited to the amount you paid for the item in question.
+                            </p>
                         </div>
 
                         {/* Section 12 */}
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">12</span>
-                                12. Governing Law
+                                Governing Law
                             </h2>
                             <p className="text-gray-700 leading-relaxed ml-11">
-                                These Terms & Conditions are governed by and construed in accordance with applicable local laws.
+                                These Terms & Conditions are governed by the laws of the People&apos;s Republic of Bangladesh. Any dispute that cannot be settled between us will be handled by the courts of Bangladesh.
                             </p>
                         </div>
 
@@ -206,16 +224,18 @@ export default async function TermsConditionPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">13</span>
-                                13. Contact Information
+                                Contact Information
                             </h2>
                             <p className="text-gray-700 leading-relaxed mb-4 ml-11">
-                                For any questions regarding these Terms, please contact us at:
+                                For any questions regarding these Terms, please reach us through our Contact page or at:
                             </p>
                             <div className="ml-16 bg-gray-50 rounded-lg p-6">
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Brand:</span> AB9DECOMMERCE</p>
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Address:</span> [Your Business Address]</p>
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Phone:</span> +1 000 000 0000</p>
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Email:</span> ab9d-ecommerce@gmail.com</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Brand:</span> BANGLA FASHIONS</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Main Branch:</span> Opposite of MM College Post Office, VIP Road, Lamabazar, Sylhet</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Shibganj Branch:</span> Opposite of Pubali Bank, Shibganj, Sylhet</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Tilagor Branch:</span> West to the Tilagor Jame Moszid, Tamabil Road, Tilagor, Sylhet</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Phone:</span> <a href="tel:+8801911700793" className="hover:underline">+880 1911-700793</a>, <a href="tel:+8801601383683" className="hover:underline">+880 1601-383683</a>, <a href="tel:+8801643480565" className="hover:underline">+880 1643-480565</a></p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Email:</span> <a href="mailto:banglafashion2007@gmail.com" className="hover:underline">banglafashion2007@gmail.com</a></p>
                             </div>
                         </div>
                     </div>

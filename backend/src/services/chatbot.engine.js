@@ -319,7 +319,7 @@ async function modifyCart(action, ctx, symbol) {
 async function showCart(ctx, symbol) {
     const snap = await resolveCart(ctx.cart, symbol);
     if (!snap.count) {
-        return respond("Your cart is empty. Tap Browse products to add something tasty!", ctx, symbol, {
+        return respond("Your cart is empty. Tap Browse products to add something you like!", ctx, symbol, {
             cart: snap,
             quickReplies: [{ label: '🛍️ Browse products', action: { type: 'browse' } }],
         });
@@ -606,7 +606,7 @@ function greet(ctx, symbol, siteName) {
 function helpMessage(ctx, symbol) {
     return respond(
         `Here's how I can help:\n` +
-        `• **Search** — just type a product name (e.g. "ghee", "honey").\n` +
+        `• **Search** — just type a product name (e.g. "panjabi", "t-shirt").\n` +
         `• **Browse** — tap "Browse products" to see categories.\n` +
         `• **Add** items to your cart, then **Checkout**.\n` +
         `• I'll collect your name, phone & address and place a **cash-on-delivery** order.\n\n` +

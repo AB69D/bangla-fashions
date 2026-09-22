@@ -43,8 +43,8 @@ export default async function manifest() {
         scope: "/",
         display: "standalone",
         orientation: "any",
-        background_color: "#0f172a",
-        theme_color: "#0f766e",
+        background_color: "#ffffff",
+        theme_color: "#0e6e36",
         icons,
     };
 }

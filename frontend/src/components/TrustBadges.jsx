@@ -3,14 +3,14 @@ import { FiTruck, FiShield, FiRotateCcw, FiHeadphones } from "react-icons/fi";
 import Reveal from "./Reveal.jsx";
 
 const ITEMS = [
-    { icon: FiTruck, title: "Fast Delivery", sub: "Nationwide shipping" },
-    { icon: FiShield, title: "Secure Checkout", sub: "Your data is safe" },
-    { icon: FiRotateCcw, title: "Easy Returns", sub: "Hassle-free policy" },
-    { icon: FiHeadphones, title: "Real Support", sub: "We reply fast" },
+    { icon: FiTruck, title: "Home Delivery", sub: "Cash on delivery available" },
+    { icon: FiShield, title: "Trusted Since 2007", sub: "Sylhet, retail and wholesale" },
+    { icon: FiRotateCcw, title: "Easy Exchange", sub: "Wrong size? Tell us and we swap it" },
+    { icon: FiHeadphones, title: "Real Support", sub: "We reply on working days" },
 ];
 
-// A quiet confidence strip — the four questions a first-time visitor is
-// silently asking before they trust a store enough to check out.
+// A quiet confidence strip — the four questions a first-time clothing
+// shopper is silently asking before they trust a store enough to check out.
 export default function TrustBadges() {
     return (
         <div className="w-full px-4 py-6 sm:py-8">

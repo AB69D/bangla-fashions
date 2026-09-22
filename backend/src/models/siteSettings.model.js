@@ -14,16 +14,26 @@ const siteSettingsSchema = new mongoose.Schema(
         // Singleton — there should only ever be one document.
         key: { type: String, default: 'global', unique: true, immutable: true },
 
-        siteName: { type: String, default: 'Ab9dEcommerce', trim: true },
-        tagline: { type: String, default: '', trim: true },
-        description: { type: String, default: '', trim: true },
+        siteName: { type: String, default: 'Bangla Fashions', trim: true },
+        tagline: { type: String, default: 'A Fashion House of Deshi Brand', trim: true },
+        description: {
+            type: String,
+            default:
+                "Bangla Fashions is a Bangladeshi clothing brand — t-shirts, polo shirts, fotua, panjabi, shirts, pants and women's & kids' wear delivered across Bangladesh.",
+            trim: true,
+        },
 
         logoUrl: { type: String, default: '' },
         faviconUrl: { type: String, default: '' },
 
-        contactEmail: { type: String, default: '', trim: true, lowercase: true },
-        contactPhone: { type: String, default: '', trim: true },
-        contactAddress: { type: String, default: '', trim: true },
+        contactEmail: { type: String, default: 'banglafashion2007@gmail.com', trim: true, lowercase: true },
+        contactPhone: { type: String, default: '+880 1911-700793, +880 1601-383683, +880 1643-480565', trim: true },
+        contactAddress: {
+            type: String,
+            default:
+                'Main Branch: Opposite of MM College Post Office, VIP Road, Lamabazar, Sylhet. Shibganj Branch: Opposite of Pubali Bank, Shibganj, Sylhet. Tilagor Branch: West to the Tilagor Jame Moszid, Tamabil Road, Tilagor, Sylhet.',
+            trim: true,
+        },
 
         socialLinks: { type: [socialLinkSchema], default: [] },
 
@@ -117,7 +127,7 @@ const siteSettingsSchema = new mongoose.Schema(
 
         // WhatsApp order / status notifications.
         whatsapp: {
-            businessNumber: { type: String, default: '' }, // E.164 without '+', e.g. 8801XXXXXXXXX
+            businessNumber: { type: String, default: '8801911700793' }, // E.164 without '+', e.g. 8801XXXXXXXXX
             notifyOnOrder: { type: Boolean, default: true },
             notifyOnStatusChange: { type: Boolean, default: true },
             // {{name}} {{orderId}} {{total}} {{status}} are substituted at send time.
@@ -136,24 +146,26 @@ const siteSettingsSchema = new mongoose.Schema(
         // properties injected server-side in the root layout. Navbar and footer
         // are ALWAYS rendered as gradients (three stops each); the home page gets
         // a soft background wash. `primary`/`accent` drive buttons, links and the
-        // gold highlights. Defaults reproduce the original emerald/amber brand so
-        // nothing changes visually until an admin customises it.
+        // red highlights. Defaults are the green (#128A44) and red (#EC1F28)
+        // sampled from the Bangla Fashions logo, with the gradient stops darkened
+        // either side of the green so white navbar/footer text stays legible.
+        // Nothing changes visually until an admin customises it.
         theme: {
             // Navbar gradient (left → right) + a legible text/icon colour on top.
-            navbarFrom: { type: String, default: '#065f46' },
-            navbarVia: { type: String, default: '#047857' },
-            navbarTo: { type: String, default: '#064e3b' },
-            navbarText: { type: String, default: '#ecfdf5' },
+            navbarFrom: { type: String, default: '#0E6E36' },
+            navbarVia: { type: String, default: '#128A44' },
+            navbarTo: { type: String, default: '#0A5228' },
+            navbarText: { type: String, default: '#FFFFFF' },
             // Footer gradient (top → bottom).
-            footerFrom: { type: String, default: '#064e3b' },
-            footerVia: { type: String, default: '#065f46' },
-            footerTo: { type: String, default: '#022c22' },
+            footerFrom: { type: String, default: '#0E6E36' },
+            footerVia: { type: String, default: '#0A5228' },
+            footerTo: { type: String, default: '#06381B' },
             // Home / storefront background wash (top tint → base).
-            homeFrom: { type: String, default: '#ecfdf5' },
-            homeTo: { type: String, default: '#ffffff' },
+            homeFrom: { type: String, default: '#EAF7EF' },
+            homeTo: { type: String, default: '#FFFFFF' },
             // Brand accents reused across the UI.
-            primary: { type: String, default: '#047857' },
-            accent: { type: String, default: '#f59e0b' },
+            primary: { type: String, default: '#128A44' },
+            accent: { type: String, default: '#EC1F28' },
         },
 
         // ── Online payments ────────────────────────────────────────────────

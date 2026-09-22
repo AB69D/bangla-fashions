@@ -1,4 +1,10 @@
-name: Deploy backend to VPS
+name: Deploy backend to Contabo VPS
+
+# Requires four repo secrets, set under
+# Settings → Secrets and variables → Actions on THIS repository:
+#   VPS_HOST, VPS_USER, VPS_SSH_PORT, VPS_SSH_PRIVATE_KEY
+# Secrets are per-repository and do NOT carry over from the repo this code came
+# from. Until they are set here, every run fails at the "Set up SSH" step.
 
 on:
   push:
@@ -66,13 +72,16 @@ jobs:
             exit 1
           fi
 
-      - name: Pull + rebuild backend on VPS
+      - name: Pull + rebuild backend on the Contabo VPS
         run: |
           set -euo pipefail
           ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=accept-new -p "${VPS_PORT}" \
               "${VPS_USER}@${VPS_HOST}" bash -s <<'EOF'
           set -euo pipefail
-          cd /opt/ab9d-ecommerce
+          # The deploy pulls into this exact directory, so the repo must be
+          # cloned to /opt/bangla-fashions on the Contabo VPS during server
+          # setup. Clone it anywhere else and every run fails here.
+          cd /opt/bangla-fashions
           echo "Current commit (before): $(git rev-parse --short HEAD)"
           git fetch --quiet origin main
           git reset --hard origin/main

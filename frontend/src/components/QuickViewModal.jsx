@@ -178,7 +178,7 @@ export default function QuickViewModal() {
                             onClick={handleAdd}
                             disabled={adding || !currentWeight?.stock}
                             className="mt-5 w-full text-white font-semibold py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                            style={{ background: added ? "#059669" : "var(--theme-primary)" }}
+                            style={{ background: added ? "#128A44" : "var(--theme-primary)" }}
                         >
                             {adding ? "Adding..." : added ? <><FiCheck className="w-4 h-4" /> Added to cart</> : <><FiShoppingCart className="w-4 h-4" /> {currentWeight?.stock > 0 ? "Add to Cart" : "Out of Stock"}</>}
                         </button>

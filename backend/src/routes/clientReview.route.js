@@ -25,7 +25,7 @@ const uploadToCloudinary = async (file) => {
         return new Promise((resolve, reject) => {
             const stream = cloudinary.uploader.upload_stream(
                 {
-                    folder: "Ab9dEcommerce/reviews",
+                    folder: "bangla-fashions/reviews",
                     resource_type: "video",
                     eager: [{ streaming_profile: "hd", format: "m3u8" }],
                     eager_async: true
@@ -41,7 +41,7 @@ const uploadToCloudinary = async (file) => {
 
     return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
-            { folder: "Ab9dEcommerce/reviews", format: "webp" },
+            { folder: "bangla-fashions/reviews", format: "webp" },
             (error, result) => {
                 if (result) resolve({ type: 'image', url: result.secure_url });
                 else reject(error);

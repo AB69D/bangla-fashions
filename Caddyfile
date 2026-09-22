@@ -1,7 +1,8 @@
-# Caddy reverse proxy — backend-only (frontend is on Vercel).
+# Caddy reverse proxy on the Contabo VPS — backend-only (the Bangla Fashions
+# storefront is deployed separately; see frontend/.github/workflows/deploy.yml).
 # Currently serves HTTP on port 80 by IP (no domain yet).
-# When you have a domain pointing at this VPS, replace `:80` block with
-# `api.yourdomain.com { reverse_proxy backend:8080 }` and Caddy will
+# When the Bangla Fashions domain points at this Contabo VPS, replace the `:80`
+# block with `api.yourdomain.com { reverse_proxy backend:8080 }` and Caddy will
 # auto-provision Let's Encrypt HTTPS.
 
 :80 {

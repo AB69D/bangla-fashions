@@ -182,7 +182,7 @@ export default function CustomerReviews() {
                 }
  
                 .rv-quote {
-                    color: #a7f3d0;
+                    color: #128A44;
                     margin-bottom: 12px;
                     flex-shrink: 0;
                 }
@@ -218,14 +218,14 @@ export default function CustomerReviews() {
                     width: 38px;
                     height: 38px;
                     border-radius: 50%;
-                    background: #d1fae5;
-                    border: 1px solid #a7f3d0;
+                    background: #EAF7EF;
+                    border: 1px solid #128A44;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     font-size: 13px;
                     font-weight: 700;
-                    color: #065f46;
+                    color: #0A5228;
                     flex-shrink: 0;
                 }
  
@@ -281,9 +281,9 @@ export default function CustomerReviews() {
                 }
  
                 .rv-nav-btn:hover {
-                    background: #f0fdf4;
-                    border-color: #6ee7b7;
-                    color: #065f46;
+                    background: #EAF7EF;
+                    border-color: #128A44;
+                    color: #0A5228;
                 }
  
                 .rv-nav-btn:active {
@@ -316,7 +316,7 @@ export default function CustomerReviews() {
  
                 .rv-dot-active {
                     width: 22px;
-                    background: #059669;
+                    background: var(--theme-primary);
                 }
  
                 .dark .rv-section { background: #0e1512; }
@@ -325,10 +325,10 @@ export default function CustomerReviews() {
                 .dark .rv-card { background: #151b18; border-color: #232b27; }
                 .dark .rv-media-item { border-color: #232b27; }
                 .dark .rv-comment { color: #a9b4ae; }
-                .dark .rv-avatar { background: #064e3b; border-color: #065f46; color: #6ee7b7; }
+                .dark .rv-avatar { background: #0A5228; border-color: #128A44; color: #EAF7EF; }
                 .dark .rv-author-date { color: #71807a; }
                 .dark .rv-nav-btn { background: #151b18; border-color: #232b27; color: #a9b4ae; }
-                .dark .rv-nav-btn:hover { background: #0e2a20; border-color: #065f46; color: #6ee7b7; }
+                .dark .rv-nav-btn:hover { background: #0A5228; border-color: #128A44; color: #EAF7EF; }
                 .dark .rv-dot-inactive { background: #2c3532; }
                 .dark .rv-dot-inactive:hover { background: #3a4441; }
 

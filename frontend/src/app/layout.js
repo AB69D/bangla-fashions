@@ -27,14 +27,14 @@ const geistMono = Geist_Mono({
 // the title, description, social cards and favicon all follow the panel.
 export async function generateMetadata() {
   const settings = await fetchSiteSettings();
-  const siteName = settings?.siteName || "Ab9dEcommerce";
+  const siteName = settings?.siteName || "Bangla Fashions";
   const seo = settings?.seo || {};
-  const title = seo.defaultTitle || `${siteName} - Quality Products Online`;
+  const title = seo.defaultTitle || `${siteName} - Clothing & Fashion in Bangladesh`;
   const description =
     seo.defaultDescription ||
     settings?.description ||
     settings?.tagline ||
-    `${siteName} is promising to deliver products from our store to your door`;
+    `${siteName} is a Bangladeshi clothing brand — t-shirts, polo shirts, fotua, panjabi, shirts, pants and women's & kids' wear delivered across Bangladesh.`;
   const ogImage = absoluteUrl(seo.ogImage || settings?.logoUrl || "/logo.png");
   // Browser-tab + iOS home-screen icons follow the admin logo: favicon first,
   // then the company logo, and only then the bundled placeholder.
@@ -81,21 +81,25 @@ export async function generateMetadata() {
   };
 }
 
-// Brand-aligned theme defaults. The admin panel overrides any of these from the
-// Appearance tab; everything missing falls back here so the storefront always
-// has a complete, legible palette.
+// Brand-aligned theme defaults — the green (#128a44) and red (#ec1f28) sampled
+// from the Bangla Fashions logo, with the gradient stops darkened either side of
+// the green so white navbar/footer text stays legible. The admin panel overrides
+// any of these from the Appearance tab; everything missing falls back here so the
+// storefront always has a complete, legible palette. Keep in sync with the theme
+// defaults in backend/src/models/siteSettings.model.js and the THEME_DEFAULTS in
+// src/app/admin/settings/page.jsx.
 const THEME_DEFAULTS = {
-  navbarFrom: "#065f46",
-  navbarVia: "#047857",
-  navbarTo: "#064e3b",
-  navbarText: "#ecfdf5",
-  footerFrom: "#064e3b",
-  footerVia: "#065f46",
-  footerTo: "#022c22",
-  homeFrom: "#ecfdf5",
+  navbarFrom: "#0e6e36",
+  navbarVia: "#128a44",
+  navbarTo: "#0a5228",
+  navbarText: "#ffffff",
+  footerFrom: "#0e6e36",
+  footerVia: "#0a5228",
+  footerTo: "#06381b",
+  homeFrom: "#eaf7ef",
   homeTo: "#ffffff",
-  primary: "#047857",
-  accent: "#f59e0b",
+  primary: "#128a44",
+  accent: "#ec1f28",
 };
 
 const resolveTheme = (settings) => ({ ...THEME_DEFAULTS, ...(settings?.theme || {}) });

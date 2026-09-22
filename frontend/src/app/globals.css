@@ -57,12 +57,12 @@ h1, h2, h3, h4, p, a, span, li {
         background: #f8fafc;
     }
     ::-webkit-scrollbar-thumb {
-        background: linear-gradient(180deg, #047857, #059669);
+        background: linear-gradient(180deg, #128a44, #0e6e36);
         border-radius: 8px;
         border: 2px solid #f8fafc;
     }
     ::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(180deg, #065f46, #047857);
+        background: linear-gradient(180deg, #0a5228, #128a44);
     }
 }
 
@@ -131,7 +131,7 @@ h1, h2, h3, h4, p, a, span, li {
 }
 .card-hover:hover {
     transform: translateY(-4px);
-    box-shadow: 0 14px 30px -12px rgba(5, 150, 105, 0.25),
+    box-shadow: 0 14px 30px -12px rgba(18, 138, 68, 0.25),
                 0 6px 12px -4px rgba(0, 0, 0, 0.06);
 }
 
@@ -150,8 +150,8 @@ h1, h2, h3, h4, p, a, span, li {
 
 /* Visual selection that matches the brand */
 ::selection {
-    background: #d1fae5;
-    color: #065f46;
+    background: #eaf7ef;
+    color: #0a5228;
 }
 
 /* Dark mode: override the admin-driven home-page wash and default text/link
@@ -162,8 +162,8 @@ h1, h2, h3, h4, p, a, span, li {
     color: #f1f5f3;
 }
 .dark ::selection {
-    background: #065f46;
-    color: #d1fae5;
+    background: #0a5228;
+    color: #eaf7ef;
 }
 @media (min-width: 768px) {
     .dark ::-webkit-scrollbar-track {

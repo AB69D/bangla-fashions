@@ -40,7 +40,7 @@ async function getRatingSummary(id) {
 export async function generateMetadata({ params }) {
     const { id } = await params;
     const [settings, product] = await Promise.all([getSettings(), getProduct(id)]);
-    const siteName = settings?.siteName || "Ab9dEcommerce";
+    const siteName = settings?.siteName || "Bangla Fashions";
     const currencySymbol = settings?.currencySymbol || "৳";
 
     if (product) {
@@ -53,7 +53,7 @@ export async function generateMetadata({ params }) {
             // Root layout adds the " | <siteName>" suffix via its title template.
             title: `${productName} - ${currencySymbol}${price}`,
             description,
-            keywords: [product.firstName, product.lastName, product.category?.category_name, siteName, 'products']
+            keywords: [product.firstName, product.lastName, product.category?.category_name, siteName, 'clothing', 'Bangladesh']
                 .filter(Boolean)
                 .join(', '),
             alternates: { canonical: `/product/${id}` },

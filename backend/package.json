@@ -1,5 +1,5 @@
 {
-  "name": "ab9d-ecommerce-server",
+  "name": "bangla-fashions-server",
   "version": "1.0.0",
   "main": "src/server.js",
   "type": "module",
@@ -9,7 +9,7 @@
   },
   "author": "Md Manzurul Islam",
   "license": "ISC",
-  "description": "Ab9dEcommerce backend API server",
+  "description": "Bangla Fashions backend API server",
   "engines": {
     "node": ">=20.0.0"
   },

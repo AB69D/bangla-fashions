@@ -44,13 +44,13 @@ export default function AdminLoginPage() {
                         <div className="flex justify-center mb-4">
                             <Image
                                 src="/logo.png"
-                                alt="Ab9dEcommerce"
+                                alt="Bangla Fashions"
                                 width={80}
                                 height={80}
                                 className="object-contain"
                             />
                         </div>
-                        <h1 className="text-2xl font-bold text-gray-800">Admin Login</h1>
+                        <h1 className="text-2xl font-bold text-gray-800">Bangla Fashions Admin</h1>
                         <p className="text-gray-500 mt-1 text-sm">
                             Sign in with your administrator credentials
                         </p>
@@ -75,7 +75,7 @@ export default function AdminLoginPage() {
                                     autoComplete="username"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
-                                    placeholder="ab9d"
+                                    placeholder="admin"
                                     required
                                     autoFocus
                                     className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all placeholder:text-gray-400"

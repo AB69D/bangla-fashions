@@ -195,7 +195,7 @@ export default function CreateProductPage() {
                             name="firstName" 
                             required 
                             className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-700 text-xs sm:text-sm" 
-                            placeholder="e.g. Pure Mustard Oil" 
+                            placeholder="e.g. Classic Cotton Panjabi" 
                         />
                     </div>
                     <div>
@@ -204,7 +204,7 @@ export default function CreateProductPage() {
                             type="text" 
                             name="lastName" 
                             className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-700 text-xs sm:text-sm" 
-                            placeholder="e.g. Premium Grade" 
+                            placeholder="e.g. Full Sleeve" 
                         />
                     </div>
                 </div>
@@ -247,20 +247,20 @@ export default function CreateProductPage() {
 
                 <div className="border-t pt-4 sm:pt-5">
                     <div className="flex items-center justify-between mb-3 sm:mb-4">
-                        <h4 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-800">Product Weights</h4>
+                        <h4 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-800">Product Sizes</h4>
                         <button 
                             type="button" 
                             onClick={addWeight}
                             className="flex items-center gap-1 text-xs sm:text-sm text-emerald-600 hover:text-emerald-700"
                         >
-                            <FiPlus className="w-3 h-3 sm:w-4 sm:h-4" /> Add Weight
+                            <FiPlus className="w-3 h-3 sm:w-4 sm:h-4" /> Add Size
                         </button>
                     </div>
 
                     {weights.map((weight, index) => (
                         <div key={index} className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-3 sm:mb-4 border">
                             <div className="flex items-center justify-between mb-2 sm:mb-3">
-                                <span className="text-xs sm:text-sm font-medium text-gray-600">Weight {index + 1}</span>
+                                <span className="text-xs sm:text-sm font-medium text-gray-600">Size {index + 1}</span>
                                 {weights.length > 1 && (
                                     <button 
                                         type="button" 
@@ -273,14 +273,14 @@ export default function CreateProductPage() {
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-3 lg:gap-4 mb-2 sm:mb-3">
                                 <div>
-                                    <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Weight</label>
+                                    <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Size</label>
                                     <input 
                                         type="text" 
                                         value={weight.weight}
                                         onChange={(e) => updateWeight(index, "weight", e.target.value)}
                                         required
                                         className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-700 text-xs sm:text-sm" 
-                                        placeholder="e.g. 1kg, 500ml" 
+                                        placeholder="e.g. M, L, XL" 
                                     />
                                 </div>
                                 <div>
@@ -295,7 +295,7 @@ export default function CreateProductPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Price ($)</label>
+                                    <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Price</label>
                                     <input
                                         type="number"
                                         value={weight.price}
@@ -308,7 +308,7 @@ export default function CreateProductPage() {
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-3 lg:gap-4 mb-2 sm:mb-3">
                                 <div>
-                                    <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Cost Price ($)</label>
+                                    <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Cost Price</label>
                                     <input
                                         type="number"
                                         min="0"
@@ -351,7 +351,7 @@ export default function CreateProductPage() {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Images for {weight.weight || 'this weight'}</label>
+                                <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Images for {weight.weight || 'this size'}</label>
                                 <div className="border border-dashed border-gray-300 rounded-lg p-2 sm:p-3 bg-white text-center">
                                     <input 
                                         type="file" 
@@ -423,7 +423,7 @@ export default function CreateProductPage() {
                                                 value={qa.question}
                                                 onChange={(e) => updateQA(index, "question", e.target.value)}
                                                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-700 text-xs sm:text-sm" 
-                                                placeholder="e.g. Is this product quality?" 
+                                                placeholder="e.g. What is the fabric?" 
                                             />
                                         </div>
                                         <div>
@@ -433,7 +433,7 @@ export default function CreateProductPage() {
                                                 onChange={(e) => updateQA(index, "answer", e.target.value)}
                                                 rows={2}
                                                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-700 text-xs sm:text-sm resize-none" 
-                                                placeholder="e.g. Yes, this product is 100% quality certified." 
+                                                placeholder="e.g. Cotton. Machine wash cold, do not bleach." 
                                             />
                                         </div>
                                     </div>

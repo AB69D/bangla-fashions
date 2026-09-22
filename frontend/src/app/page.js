@@ -8,28 +8,28 @@ import CustomerReviews from "@/components/CustomerReviews.jsx";
 import Reveal from "@/components/Reveal.jsx";
 
 export const metadata = {
-    title: "Ab9dEcommerce - Quality Products | Wide Selection",
-    description: "Shop quality products at Ab9dEcommerce. We offer a wide selection of quality products across multiple categories.",
-    keywords: "Ab9dEcommerce, products, pure various products, quality products, traditional food, products",
+    title: "Bangla Fashions - A Fashion House of Deshi Brand, Sylhet Since 2007",
+    description: "Traditional and everyday clothing from Bangla Fashions, trading in Sylhet since 2007. Panjabi, fotua, saree and kurti alongside t-shirts, polo shirts, shirts, pants, jeans and kids' wear. Retail and wholesale.",
+    keywords: "Bangla Fashions, clothing store Sylhet, wholesale clothing Sylhet, clothing store Bangladesh, t-shirt, polo shirt, fotua, panjabi, formal shirt, casual shirt, chinos, jeans, kurti, three piece, saree, kids clothing, men's fashion, women's fashion, online fashion shopping Bangladesh",
     openGraph: {
-        title: "Ab9dEcommerce - quality products",
-        description: "Shop quality products at Ab9dEcommerce. Premium quality various products, and quality products.",
-        url: "https://example.com",
-        siteName: "Ab9dEcommerce",
+        title: "Bangla Fashions - A Fashion House of Deshi Brand, Sylhet Since 2007",
+        description: "Men's, women's and kids' clothing from Bangla Fashions in Sylhet. Panjabi, fotua, saree, kurti and three-piece sets alongside t-shirts, shirts, pants and jeans. Retail and wholesale, run on honesty since 2007.",
+        url: process.env.NEXT_PUBLIC_SITE_URL || "https://example.com",
+        siteName: "Bangla Fashions",
         images: [
             {
                 url: "/logo.png",
                 width: 800,
                 height: 600,
-                alt: "Ab9dEcommerce Logo"
+                alt: "Bangla Fashions Logo"
             }
         ],
         type: "website"
     },
     twitter: {
         card: "summary_large_image",
-        title: "Ab9dEcommerce - quality products",
-        description: "Shop quality products at Ab9dEcommerce",
+        title: "Bangla Fashions - A Fashion House of Deshi Brand, Sylhet Since 2007",
+        description: "Traditional and everyday wear for men, women and kids. Retail and wholesale from Bangla Fashions, Sylhet, trading since 2007.",
         images: ["/logo.png"]
     }
 };

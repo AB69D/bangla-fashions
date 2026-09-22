@@ -3,6 +3,7 @@ import { usePathname } from "next/navigation";
 import { FaPhoneAlt } from "react-icons/fa";
 import { PiWhatsappLogoBold } from "react-icons/pi";
 import { useWhatsApp } from "@/hooks/useWhatsApp";
+import { splitPhones, telHref } from "@/lib/phone";
 
 export default function HeaderTop() {
     const pathname = usePathname();
@@ -10,8 +11,9 @@ export default function HeaderTop() {
     // The POS terminal is a self-contained full-screen app — no storefront chrome.
     if (pathname?.startsWith("/pos")) return null;
 
-    const phone = wa.contactPhone;
-    const showCall = Boolean(phone);
+    // contactPhone can hold several numbers; the bar shows and dials the first.
+    const phone = splitPhones(wa.contactPhone)[0] || "";
+    const showCall = Boolean(telHref(phone));
     const showWhatsApp = wa.enabled;
 
     // Nothing to show until the admin sets a contact phone and/or enables WhatsApp.
@@ -27,7 +29,7 @@ export default function HeaderTop() {
                     <div className="flex items-center gap-4 sm:gap-6">
                         {showCall && (
                             <a
-                                href={`tel:${phone.replace(/\s/g, "")}`}
+                                href={telHref(phone)}
                                 className="flex items-center gap-1.5 text-white hover:text-green-400 transition-colors"
                             >
                                 <FaPhoneAlt className="text-sm text-green-500" />

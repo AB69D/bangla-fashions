@@ -1,61 +1,31 @@
-export default function BlogPage() {
-    const blogs = [
-        {
-            title: "The Benefits of Our Products",
-            date: "April 20, 2026",
-            excerpt: "Discover why quality honey is considered liquid gold and how it can transform your health.",
-            category: "Health"
-        },
-        {
-            title: "Traditional Ghee vs. Modern Ghee",
-            date: "April 18, 2026",
-            excerpt: "Learn about the differences between traditional cow ghee and processed alternatives.",
-            category: "Food Guide"
-        },
-        {
-            title: "How to Identify Authentic Aachar",
-            date: "April 15, 2026",
-            excerpt: "Tips and tricks to identify the best quality homemade pickles for your family.",
-            category: "Tips"
-        },
-        {
-            title: "The Story Behind Ab9dEcommerce",
-            date: "April 10, 2026",
-            excerpt: "How we started our journey to bring our authentic products to every home.",
-            category: "Company"
-        },
-        {
-            title: "Health Benefits of Desi Gura Mosla",
-            date: "April 5, 2026",
-            excerpt: "Explore the traditional remedies using indigenous spices and herbs.",
-            category: "Health"
-        },
-        {
-            title: "Cooking Tips",
-            date: "April 1, 2026",
-            excerpt: "Maximize the health benefits of cooking oils in your daily meals.",
-            category: "Tips"
-        }
-    ];
+import Link from "next/link";
+import { FiFileText } from "react-icons/fi";
 
+export const metadata = {
+    title: "Blog | Bangla Fashions",
+    description: "Notes on fabric, fit and what to wear for Eid from Bangla Fashions in Sylhet. Nothing published yet — reach us on the contact page in the meantime.",
+};
+
+export default function BlogPage() {
     return (
         <div className="py-12">
             <h1 className="text-3xl font-bold text-gray-800 mb-6">Blog</h1>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {blogs.map((blog, index) => (
-                    <div key={index} className="bg-white border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                        <div className="bg-gray-100 h-48 flex items-center justify-center">
-                            <span className="text-gray-400">Blog Image</span>
-                        </div>
-                        <div className="p-4">
-                            <span className="text-xs text-emerald-600 font-medium">{blog.category}</span>
-                            <h2 className="font-semibold text-gray-800 mt-1">{blog.title}</h2>
-                            <p className="text-sm text-gray-500 mt-2">{blog.date}</p>
-                            <p className="text-gray-600 mt-2">{blog.excerpt}</p>
-                            <a href="#" className="text-emerald-600 hover:underline mt-3 inline-block">Read More</a>
-                        </div>
-                    </div>
-                ))}
+            <div className="bg-white border border-gray-200 rounded-2xl p-8 sm:p-12 text-center max-w-2xl">
+                <div className="w-14 h-14 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto mb-5">
+                    <FiFileText className="w-7 h-7 text-emerald-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-800 mb-3">Nothing published yet</h2>
+                <p className="text-gray-600 leading-relaxed">
+                    We have not written anything here so far. When we do it will be the things customers ask us at
+                    the counter: which panjabi fabric survives a long Eid day, how to pick a size without trying it
+                    on, how to wash cotton so it keeps its shape.
+                </p>
+                <p className="text-gray-600 leading-relaxed mt-4">
+                    Until then, ask us directly. Questions about a size, a fabric, an order or a wholesale rate get
+                    a faster answer on the{' '}
+                    <Link href="/contact" className="text-emerald-600 font-semibold hover:underline">Contact page</Link>{' '}
+                    or over the phone.
+                </p>
             </div>
         </div>
     );

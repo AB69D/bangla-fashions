@@ -1,11 +1,30 @@
-# 🧠 Agent Configuration — Admin Panel (Ab9dEcommerce)
+# 🧠 Agent Configuration — Admin Panel (Bangla Fashions)
+
+## 🏷️ Brand
+
+- **Company:** Bangla Fashions — a traditional clothing brand in Sylhet, trading
+  since 1 September 2007. It sells retail and wholesale from three showrooms.
+- **Tagline:** A Fashion House of Deshi Brand
+- **Catalogue:** t-shirts, polo shirts, fotua, panjabi, formal & casual shirts,
+  pants/chinos, jeans, and women's & kids' wear (kurti, three-piece, saree, kids sets).
+- **Palette:** brand green `#128a44` (primary) + brand red `#ec1f28` (accent), both
+  sampled from the client's logo in `docs/brand/logo-source.png`.
+- **Currency:** BDT (৳) · **Country:** Bangladesh
+- Bangla Fashions is a retailer and wholesaler, not a manufacturer. Never write copy
+  that claims production, factories, fabric sourcing or stitching. Never invent
+  delivery times, return windows, order minimums, opening hours or social handles —
+  if the owner has not supplied a number, describe how it works or point at Contact.
+- Site name and theme colours are admin-editable (Appearance tab); the values
+  hardcoded in `src/app/layout.js` are fallbacks only.
+
+---
 
 ## 📁 Repository Structure
 
 Root contains:
 - `/client` → ❌ DO NOT USE
-- `/ab9d-ecommerce` → ✅ Frontend (PRIMARY WORKSPACE)
-- `/server` → ✅ Backend (REFERENCE + LIMITED MODIFICATION)
+- `/frontend` → ✅ Frontend (PRIMARY WORKSPACE)
+- `/backend` → ✅ Backend (REFERENCE + LIMITED MODIFICATION)
 
 ---
 
@@ -18,7 +37,7 @@ Build a fully functional **Admin Panel frontend** for an e-commerce system using
 ## ⚠️ Hard Constraints (MANDATORY)
 
 1. NEVER modify `/client`
-2. ALWAYS inspect `/server` before implementing API calls
+2. ALWAYS inspect `/backend` before implementing API calls
 3. If API does not match frontend needs → MODIFY backend accordingly
 4. DO NOT assume API structure — VERIFY from code
 5. DO NOT implement features outside defined scope
@@ -41,7 +60,7 @@ Build a fully functional **Admin Panel frontend** for an e-commerce system using
 
 ---
 
-## 🏗️ Frontend Architecture Rules (`/ab9d-ecommerce`)
+## 🏗️ Frontend Architecture Rules (`/frontend`)
 
 - Use modular folder structure
 - Must include reusable components:
@@ -59,7 +78,7 @@ Build a fully functional **Admin Panel frontend** for an e-commerce system using
 
 ---
 
-## 🔌 Backend Rules (`/server`)
+## 🔌 Backend Rules (`/backend`)
 
 - Read API controllers/routes before usage
 - Modify ONLY when required
@@ -162,7 +181,7 @@ DO NOT implement:
 - Think before coding
 - Prefer incremental implementation
 - Reuse existing components when possible
-- If blocked → analyze `/server` first
+- If blocked → analyze `/backend` first
 - If still blocked → ask for clarification
 - Avoid overengineering
 

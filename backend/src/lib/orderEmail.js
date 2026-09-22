@@ -30,10 +30,10 @@ const PAYMENT_LABEL = {
 const loadBrand = async () => {
     const s = (await getSettings().catch(() => null)) || {};
     return {
-        siteName: s.siteName || process.env.MAIL_FROM_NAME || 'Our Shop',
+        siteName: s.siteName || process.env.MAIL_FROM_NAME || 'Bangla Fashions',
         symbol: s.currencySymbol || '৳',
-        primary: s.theme?.primary || '#047857',
-        accent: s.theme?.accent || '#f59e0b',
+        primary: s.theme?.primary || '#128A44',
+        accent: s.theme?.accent || '#EC1F28',
         logo: s.logoUrl || '',
         footerNote: s.receipt?.footerNote || 'Thank you for shopping with us!',
         supportEmail: s.contactEmail || process.env.MAIL_FROM_ADDRESS || '',

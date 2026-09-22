@@ -30,8 +30,8 @@ export const processAndUploadImages = async (req, res, next) => {
                 // it at Cloudinary's default canvas size and lose the whole point of
                 // uploading a scalable logo. Store it as-is instead.
                 const options = isSvg
-                    ? { folder: "Ab9dEcommerce" }
-                    : { folder: "Ab9dEcommerce", format: "webp" };
+                    ? { folder: "bangla-fashions" }
+                    : { folder: "bangla-fashions", format: "webp" };
                 const stream = cloudinary.uploader.upload_stream(
                     options,
                     (error, result) => {

@@ -1,8 +1,8 @@
 import { fetchPage } from "@/lib/dynamicContent";
 import CmsArticle from "@/components/CmsArticle";
 
-const DEFAULT_TITLE = "Privacy Policy | Ab9dEcommerce";
-const DEFAULT_DESCRIPTION = "Read Ab9dEcommerce's Privacy Policy to understand how we collect, use, and protect your personal information when you use our products delivery service.";
+const DEFAULT_TITLE = "Privacy Policy | Bangla Fashions";
+const DEFAULT_DESCRIPTION = "How Bangla Fashions collects, uses and protects your personal information when you shop for clothing on our website and receive deliveries across Bangladesh.";
 
 // Reads the admin-saved SEO title/description for this page (Pages editor)
 // and falls back to the built-in defaults above when no override is set.
@@ -13,12 +13,12 @@ export async function generateMetadata() {
     return {
         title,
         description,
-        keywords: "privacy policy, Ab9dEcommerce privacy, data protection, personal information, GDPR compliance ",
+        keywords: "privacy policy, Bangla Fashions privacy, data protection, personal information, online clothing store Bangladesh",
         openGraph: {
             title,
             description,
-            url: "https://example.com/privacy-policy",
-            siteName: "Ab9dEcommerce",
+            url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://example.com"}/privacy-policy`,
+            siteName: "Bangla Fashions",
             type: "website"
         }
     };
@@ -33,7 +33,7 @@ export default async function PrivacyPolicyPage() {
             <div className="bg-emerald-600 text-white py-16 px-4">
                 <div className="max-w-4xl mx-auto">
                     <h1 className="text-4xl md:text-5xl font-bold mb-4">Privacy Policy</h1>
-                    <p className="text-lg opacity-90">Effective Date: April 8, 2026</p>
+                    <p className="text-lg opacity-90">Effective Date: 22 September 2026</p>
                 </div>
             </div>
 
@@ -45,10 +45,10 @@ export default async function PrivacyPolicyPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">1</span>
-                                1. Introduction
+                                Introduction
                             </h2>
                             <p className="text-gray-700 leading-relaxed ml-11">
-                                At <span className="font-semibold">AB9DECOMMERCE</span>, we are dedicated to bringing the purity of the village to your doorstep. We are committed to protecting your privacy and safeguarding your personal information. This Privacy Policy outlines our practices regarding the collection, use, and disclosure of your information when you use our e-commerce platform for products and natural products. By using our services, you consent to the practices described in this policy.
+                                <span className="font-semibold">BANGLA FASHIONS</span> is a traditional clothing brand based in Sylhet, trading since 1 September 2007 and selling across Bangladesh, retail and wholesale. To take an order and get a parcel to your door, we need a small amount of information about you. This policy explains exactly what we collect, why we collect it, who else sees it, and what you can ask us to do with it. It covers this website, our customer accounts and the messages we send about your orders.
                             </p>
                         </div>
 
@@ -56,31 +56,31 @@ export default async function PrivacyPolicyPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">2</span>
-                                2. Information We Collect
+                                Information We Collect
                             </h2>
                             <p className="text-gray-700 leading-relaxed mb-4 ml-11">
-                                We collect the following types of information to ensure a seamless "farm-to-home" experience:
+                                We collect the following, and nothing beyond what an order actually needs:
                             </p>
                             <div className="ml-16 space-y-4">
                                 <div className="bg-gray-50 rounded-lg p-4">
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">2.1. Personal Information</h3>
-                                    <p className="text-gray-700 leading-relaxed">Includes your name, shipping address, email, and phone number provided during registration or checkout.</p>
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">2.1. Contact & Delivery Details</h3>
+                                    <p className="text-gray-700 leading-relaxed">Your name, mobile number, delivery address and email address, given when you register or check out. The courier needs the name, number and address to deliver the parcel.</p>
                                 </div>
                                 <div className="bg-gray-50 rounded-lg p-4">
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">2.2. Payment Data</h3>
-                                    <p className="text-gray-700 leading-relaxed">Details required to process transactions. Payments are handled via secure third-party gateways (e.g., bKash, Nagad, SSLCommerz). AB9DECOMMERCE does not store your full card or mobile wallet credentials.</p>
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">2.2. Order History</h3>
+                                    <p className="text-gray-700 leading-relaxed">What you ordered, in which size and colour, the amount, the payment method, delivery status and any return or exchange raised against the order.</p>
                                 </div>
                                 <div className="bg-gray-50 rounded-lg p-4">
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">2.3. Quality Assurance Media</h3>
-                                    <p className="text-gray-700 leading-relaxed">To maintain our high quality standards, we may collect photos or unboxing videos provided by you to verify product quality or process return requests.</p>
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">2.3. Payment Information</h3>
+                                    <p className="text-gray-700 leading-relaxed">Online payments are processed by SSLCommerz. Your card number, bKash or Nagad PIN and one-time codes are entered on their secure page, not ours. We receive only the transaction reference, amount and status. BANGLA FASHIONS never stores full card or wallet credentials.</p>
                                 </div>
                                 <div className="bg-gray-50 rounded-lg p-4">
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">2.4. Usage & Location Information</h3>
-                                    <p className="text-gray-700 leading-relaxed">Precise location data (if enabled) to provide accurate delivery windows and browsing history to improve our product selection.</p>
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">2.4. Photos You Send Us</h3>
+                                    <p className="text-gray-700 leading-relaxed">Images you upload with a product review, or send with a return or exchange request so we can see the fault. Uploaded images are stored with our image host, Cloudinary.</p>
                                 </div>
                                 <div className="bg-gray-50 rounded-lg p-4">
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">2.5. Cookies</h3>
-                                    <p className="text-gray-700 leading-relaxed">We use cookies to keep your cart saved and to understand how you navigate our village-to-urban marketplace.</p>
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-2">2.5. Cookies & Website Usage</h3>
+                                    <p className="text-gray-700 leading-relaxed">Cookies keep you logged in and keep your cart from emptying between visits. If analytics is switched on, tools such as Google Analytics, Google Tag Manager or Meta Pixel record pages viewed and products clicked, so we know which sizes and categories to stock. This is aggregate browsing data, not your name.</p>
                                 </div>
                             </div>
                         </div>
@@ -89,17 +89,17 @@ export default async function PrivacyPolicyPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">3</span>
-                                3. How We Use Your Information
+                                How We Use Your Information
                             </h2>
                             <p className="text-gray-700 leading-relaxed mb-4 ml-11">
                                 We use your personal information for the following purposes:
                             </p>
                             <div className="ml-16 space-y-3">
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">3.1. Order Fulfillment:</span> To process and deliver your products safely to your home.</p>
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">3.2. Customer Support:</span> To address inquiries regarding product freshness, sourcing, or delivery status.</p>
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">3.3. Marketing & Transparency:</span> To send updates on seasonal harvests, promotional offers, and order status notifications via SMS or email.</p>
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">3.4. Service Optimization:</span> To analyze customer preferences and ensure we are sourcing the products you need most.</p>
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">3.5. Legal Compliance:</span> To comply with applicable regulations in .</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">3.1. Order Fulfilment:</span> To confirm your order, pack it, book it with the courier and deliver it to your address.</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">3.2. Order Updates:</span> To send confirmation, dispatch and delivery messages by email or SMS, and to call you if the address or size needs checking.</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">3.3. Support, Returns & Exchanges:</span> To answer questions about fit or fabric and to process a size exchange, return or refund.</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">3.4. Offers & Improvement:</span> To send campaign or new-arrival messages if you have opted in, and to work out which products and sizes to restock.</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">3.5. Legal Compliance:</span> To keep sales records and meet our obligations under the applicable laws of Bangladesh.</p>
                             </div>
                         </div>
 
@@ -107,15 +107,16 @@ export default async function PrivacyPolicyPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">4</span>
-                                4. Sharing Your Information
+                                Sharing Your Information
                             </h2>
                             <p className="text-gray-700 leading-relaxed mb-4 ml-11">
-                                We respect your data and never sell it to third parties. We share information only with:
+                                We do not sell your data. We share it only with the partners that make an order work:
                             </p>
                             <div className="ml-16 space-y-3">
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">4.1. Delivery Partners:</span> Trusted courier services who require your contact details for successful delivery.</p>
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">4.2. Service Providers:</span> Third parties who assist with payment processing, SMS gateways, and website analytics.</p>
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">4.3. Business Transfers:</span> In the event of a merger or acquisition, your data may be transferred to the new owner under the same privacy protections.</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">4.1. Courier Partners:</span> Steadfast and other delivery partners receive your name, mobile number, address and, for cash-on-delivery parcels, the amount to collect.</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">4.2. Payment Gateway:</span> SSLCommerz processes online payments and handles the card and mobile wallet details directly.</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">4.3. Technical Service Providers:</span> Cloudinary hosts our product and customer-uploaded images, our email provider sends order and account emails, and analytics providers report anonymous site usage.</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">4.4. Legal & Business Transfers:</span> Where the law requires disclosure, or if the business is sold or merged, your data passes to the new owner under the same protections.</p>
                             </div>
                         </div>
 
@@ -123,10 +124,13 @@ export default async function PrivacyPolicyPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">5</span>
-                                5. Data Security
+                                Data Security & Retention
                             </h2>
+                            <p className="text-gray-700 leading-relaxed mb-4 ml-11">
+                                Traffic to this site runs over SSL, account passwords are stored hashed rather than in plain text, and admin access to customer records is limited to staff who need it.
+                            </p>
                             <p className="text-gray-700 leading-relaxed ml-11">
-                                AB9DECOMMERCE employs industry-standard security measures, including SSL encryption, to protect your personal information from unauthorized access, disclosure, or alteration.
+                                Order records stay in our system while your account is active, and afterwards for as long as we need them for accounts, warranty and legal purposes. Marketing contact details are removed once you unsubscribe. Photos sent with a return are deleted once the case is closed.
                             </p>
                         </div>
 
@@ -134,12 +138,13 @@ export default async function PrivacyPolicyPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">6</span>
-                                6. Your Choices
+                                Your Rights & Choices
                             </h2>
                             <div className="ml-16 space-y-3">
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">6.1. Account Management:</span> You can update your address and contact details at any time by logging into your AB9DECOMMERCE account.</p>
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">6.2. Communication Preferences:</span> You may opt-out of marketing materials by using the "unsubscribe" link in our emails or contacting our support team.</p>
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">6.3. Cookie Control:</span> You can manage or disable cookies through your browser settings.</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">6.1. See & Correct:</span> Log in to view your orders and update your name, phone number or delivery address at any time.</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">6.2. Deletion:</span> Ask us to close your account and delete your details. We keep only the sales records we are required to retain.</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">6.3. Marketing Opt-Out:</span> Use the unsubscribe link in our emails or tell our support team to stop promotional SMS. Messages about an order you have placed will still be sent.</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">6.4. Cookie Control:</span> Block or clear cookies in your browser settings. Some features, such as staying logged in and keeping your cart, will stop working.</p>
                             </div>
                         </div>
 
@@ -147,10 +152,10 @@ export default async function PrivacyPolicyPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">7</span>
-                                7. Children's Privacy
+                                Children&apos;s Privacy
                             </h2>
                             <p className="text-gray-700 leading-relaxed ml-11">
-                                Our services are intended for adults. We do not knowingly collect personal information from individuals under the age of 13.
+                                We sell kids&apos; clothing, but accounts and orders are for adults. We do not knowingly collect personal information from anyone under 13. If a child has given us their details, write to us and we will remove them.
                             </p>
                         </div>
 
@@ -158,10 +163,10 @@ export default async function PrivacyPolicyPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">8</span>
-                                8. Changes to This Policy
+                                Changes to This Policy
                             </h2>
                             <p className="text-gray-700 leading-relaxed ml-11">
-                                As we grow and add more village-sourced products, we may update this policy. All updates will be posted on this page with a revised effective date.
+                                If we add a payment method, change courier partners or start using a new tool, we will update this page and change the effective date at the top.
                             </p>
                         </div>
 
@@ -169,16 +174,18 @@ export default async function PrivacyPolicyPage() {
                         <div className="mb-10">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
                                 <span className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">9</span>
-                                9. Contact Us
+                                Contact Us
                             </h2>
                             <p className="text-gray-700 leading-relaxed mb-4 ml-11">
-                                If you have any questions or concerns regarding this Privacy Policy, please contact us at:
+                                For any question about your data, or to ask us to correct or delete it, use our Contact page or reach us at:
                             </p>
                             <div className="ml-16 bg-gray-50 rounded-lg p-6">
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">AB9DECOMMERCE</span></p>
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Email:</span> ab9d-ecommerce@gmail.com</p>
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Phone:</span> +1 000 000 0000, +1 000 000 0000</p>
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Address:</span> [Your Business Address]</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">BANGLA FASHIONS</span></p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Email:</span> <a href="mailto:banglafashion2007@gmail.com" className="hover:underline">banglafashion2007@gmail.com</a></p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Phone:</span> <a href="tel:+8801911700793" className="hover:underline">+880 1911-700793</a>, <a href="tel:+8801601383683" className="hover:underline">+880 1601-383683</a>, <a href="tel:+8801643480565" className="hover:underline">+880 1643-480565</a></p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Main Branch:</span> Opposite of MM College Post Office, VIP Road, Lamabazar, Sylhet</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Shibganj Branch:</span> Opposite of Pubali Bank, Shibganj, Sylhet</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">Tilagor Branch:</span> West to the Tilagor Jame Moszid, Tamabil Road, Tilagor, Sylhet</p>
                             </div>
                         </div>
                     </div>

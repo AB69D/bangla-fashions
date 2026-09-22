@@ -6,7 +6,6 @@ import {
     FiShoppingCart,
     FiCheck,
     FiHelpCircle,
-    FiMessageCircle,
     FiPhoneCall,
     FiPackage,
     FiArrowLeft,
@@ -29,6 +28,7 @@ import SocialProof from "@/components/SocialProof.jsx";
 import RecentlyViewed from "@/components/RecentlyViewed.jsx";
 import { recordView } from "@/services/recentlyViewed.js";
 import { useWhatsApp } from "@/hooks/useWhatsApp";
+import { splitPhones, telHref } from "@/lib/phone";
 
 const MINI_TRUST = [
     { icon: FiTruck, label: "Fast delivery" },
@@ -317,6 +317,10 @@ export default function ProductClient({ productId }) {
     const hasDiscount = currentWeight?.discountPercent > 0;
     const unitPrice = currentWeight ? currentWeight.price - (currentWeight.price * (currentWeight.discountPercent || 0) / 100) : 0;
     const lowStock = currentWeight?.stock > 0 && currentWeight.stock <= 5;
+    // contactPhone can hold several numbers; the CTA rings the first one. "" when
+    // the admin has left it blank, in which case the button is not rendered.
+    const callPhone = splitPhones(wa.contactPhone)[0] || "";
+    const callHref = telHref(callPhone);
 
     return (
         <div ref={productRef} className="w-full py-4 sm:py-8 px-4 max-w-7xl mx-auto pb-28 lg:pb-8">
@@ -537,7 +541,7 @@ export default function ProductClient({ productId }) {
                                  onClick={added ? goToCart : handleAddToCart}
                                  disabled={adding || !currentWeight?.stock}
                                  className="flex-1 min-w-0 text-white font-semibold py-3.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
-                                 style={{ background: added ? "#059669" : "var(--theme-primary)" }}
+                                 style={{ background: added ? "#0E6E36" : "var(--theme-primary)" }}
                              >
                                  {adding ? 'Adding...' : added ? <><FiCheck className="w-5 h-5" /> Added</> : <><FiShoppingCart className="w-4 h-4" /> {currentWeight?.stock > 0 ? 'Add to Cart' : 'Out of Stock'}</>}
                              </button>
@@ -562,29 +566,17 @@ export default function ProductClient({ productId }) {
                              </a>
                          )}
                          {product && <WishlistButton product={product} variant="detail" className="w-full" />}
-                         <div className="flex gap-3">
-                             {wa.contactPhone && (
-                                 <a
-                                     href={`tel:${wa.contactPhone.replace(/\s/g, "")}`}
-                                     className="flex-1 min-w-0 bg-emerald-700 hover:bg-emerald-800 text-white text-sm sm:text-base font-medium py-3 sm:py-3.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors text-center shadow-sm hover:shadow-md"
-                                     aria-label="Call to order"
-                                 >
-                                     <FiPhoneCall className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-                                     <span>Call to Order</span>
-                                 </a>
-                             )}
+                         {callHref && (
                              <a
-                                 href={`https://m.me/ab9d-ecommerce?text=${encodeURIComponent(`Hi, I'd like to know more about ${product?.firstName}.`)}`}
-                                 target="_blank"
-                                 rel="noopener noreferrer"
-                                 className="flex-1 min-w-0 bg-blue-500 hover:bg-blue-600 text-white text-sm sm:text-base font-medium py-3 sm:py-3.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors text-center shadow-sm hover:shadow-md"
+                                 href={callHref}
+                                 className="w-full text-white text-sm sm:text-base font-medium py-3 sm:py-3.5 rounded-xl flex items-center justify-center gap-1.5 transition-shadow text-center shadow-sm hover:shadow-md"
+                                 style={{ background: "var(--theme-accent)" }}
+                                 aria-label={`Call to order on ${callPhone}`}
                              >
-                                 <svg className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                                     <path d="M12 0C5.373 0 0 4.975 0 11.111c0 3.497 1.745 6.616 4.472 8.652V24l4.086-2.242c1.09.301 2.246.464 3.442.464 6.627 0 12-4.974 12-11.111C24 4.975 18.627 0 12 0zm1.193 14.963l-3.056-3.259-5.963 3.259L10.732 8.2l3.131 3.259L19.752 8.2l-6.559 6.763z"/>
-                                 </svg>
-                                 <span>Messenger</span>
+                                 <FiPhoneCall className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                                 <span>Call to Order</span>
                              </a>
-                         </div>
+                         )}
                      </div>
 
                     {/* Mini trust row */}
@@ -714,7 +706,7 @@ export default function ProductClient({ productId }) {
                         onClick={added ? goToCart : handleAddToCart}
                         disabled={adding || !currentWeight?.stock}
                         className="flex-1 text-white font-semibold py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm"
-                        style={{ background: added ? "#059669" : "var(--theme-primary)" }}
+                        style={{ background: added ? "#0E6E36" : "var(--theme-primary)" }}
                     >
                         {adding ? 'Adding...' : added ? <><FiCheck className="w-4 h-4" /> Added</> : <><FiShoppingCart className="w-4 h-4" /> {currentWeight?.stock > 0 ? 'Add to Cart' : 'Out of Stock'}</>}
                     </button>

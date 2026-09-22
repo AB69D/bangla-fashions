@@ -1,28 +1,28 @@
 import TopSelling from "@/components/TopSelling";
 
 export const metadata = {
-    title: "Top Selling Products | Ab9dEcommerce - Best Sellers",
-    description: "Check out our top selling products at Ab9dEcommerce. Discover the most popular a wide range of products loved by our customers.",
-    keywords: "top selling products, best sellers Ab9dEcommerce, popular products, best products, top rated products",
+    title: "Top Selling Products | Bangla Fashions - Best Sellers",
+    description: "Check out the best selling clothing at Bangla Fashions - the panjabi, polo shirts, t-shirts and pants our customers order most.",
+    keywords: "top selling clothing, best sellers Bangla Fashions, popular panjabi, best polo shirt, t-shirt Bangladesh, men's and women's fashion",
     openGraph: {
-        title: "Top Selling Products | Ab9dEcommerce",
-        description: "Check out our top selling products at Ab9dEcommerce.",
+        title: "Top Selling Products | Bangla Fashions",
+        description: "Check out the best selling clothing at Bangla Fashions.",
         url: "https://example.com/top-selling",
-        siteName: "Ab9dEcommerce",
+        siteName: "Bangla Fashions",
         images: [
             {
                 url: "/logo.png",
                 width: 800,
                 height: 600,
-                alt: "Ab9dEcommerce Logo"
+                alt: "Bangla Fashions Logo"
             }
         ],
         type: "website"
     },
     twitter: {
         card: "summary_large_image",
-        title: "Top Selling Products | Ab9dEcommerce",
-        description: "Check out our top selling products at Ab9dEcommerce.",
+        title: "Top Selling Products | Bangla Fashions",
+        description: "Check out the best selling clothing at Bangla Fashions.",
         images: ["/logo.png"]
     }
 };

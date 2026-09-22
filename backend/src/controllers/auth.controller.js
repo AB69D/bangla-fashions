@@ -53,12 +53,12 @@ export const sendCode = async (request, response) => {
 
         const sent = await sendEmail({
             to: normalizedEmail,
-            subject: 'Ab9dEcommerce Admin - Login Code',
+            subject: 'Bangla Fashions Admin - Login Code',
             html: `
                 <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
                     <h2 style="color: #1a1a1a; margin-bottom: 16px;">Admin Login Code</h2>
                     <p style="color: #666; font-size: 14px; line-height: 1.6;">
-                        Use the following code to log in to your Ab9dEcommerce admin panel.
+                        Use the following code to log in to your Bangla Fashions admin panel.
                         This code expires in 3 hours.
                     </p>
                     <div style="background: #f5f5f5; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">

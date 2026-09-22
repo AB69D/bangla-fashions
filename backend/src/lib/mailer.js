@@ -40,7 +40,7 @@ export const sendEmail = async ({ to, toName, subject, html, text, replyTo }) =>
                 'api-key': key,
             },
             body: JSON.stringify({
-                sender: { name: process.env.MAIL_FROM_NAME || 'Shop', email: fromEmail },
+                sender: { name: process.env.MAIL_FROM_NAME || 'Bangla Fashions', email: fromEmail },
                 to: [{ email: to, ...(toName ? { name: toName } : {}) }],
                 subject,
                 htmlContent: html,

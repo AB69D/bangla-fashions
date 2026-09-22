@@ -15,6 +15,7 @@ import {
 } from "react-icons/fa";
 import { HiOutlineMail } from "react-icons/hi";
 import { fetchSiteSettings, fetchFooter } from "../lib/dynamicContent";
+import { splitPhones, telHref } from "../lib/phone";
 import { useWhatsApp } from "@/hooks/useWhatsApp";
 
 // Map platform name (case-insensitive) → icon + brand color hover.
@@ -35,15 +36,16 @@ const PLATFORM_META = {
 };
 
 const FALLBACK_SETTINGS = {
-    siteName: "Ab9dEcommerce",
+    siteName: "Bangla Fashions",
     description:
-        "Ab9dEcommerce is an e-commerce platform dedicated to delivering quality and reliable products to every home.",
+        "Everyday and traditional clothing for men, women and kids. Serving Sylhet since 2007.",
     // Blank on purpose: show the admin-configured logo when set, otherwise
     // render no logo at all rather than a leftover brand's placeholder image.
     logoUrl: "",
-    contactEmail: "",
-    contactPhone: "",
-    contactAddress: "[Your Business Address]",
+    contactEmail: "banglafashion2007@gmail.com",
+    contactPhone: "+880 1911-700793, +880 1601-383683, +880 1643-480565",
+    contactAddress:
+        "Main Branch: Opposite of MM College Post Office, VIP Road, Lamabazar, Sylhet. Shibganj Branch: Opposite of Pubali Bank, Shibganj, Sylhet. Tilagor Branch: West to the Tilagor Jame Moszid, Tamabil Road, Tilagor, Sylhet.",
     socialLinks: [],
 };
 
@@ -110,6 +112,8 @@ export default function Footer() {
         return { ...link, ...meta };
     });
 
+    const phones = splitPhones(settings.contactPhone);
+
     const columns = (footer.columns?.length ? footer.columns : FALLBACK_FOOTER.columns).slice();
     columns.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
@@ -129,7 +133,7 @@ export default function Footer() {
                     className="absolute inset-0 opacity-[0.08] pointer-events-none"
                     style={{
                         backgroundImage:
-                            "radial-gradient(circle at 20% 20%, #fbbf24 0, transparent 35%), radial-gradient(circle at 80% 80%, #10b981 0, transparent 35%)",
+                            "radial-gradient(circle at 20% 20%, var(--theme-accent) 0, transparent 35%), radial-gradient(circle at 80% 80%, var(--theme-primary) 0, transparent 35%)",
                     }}
                 />
 
@@ -138,7 +142,7 @@ export default function Footer() {
                         {/* Left — brand block */}
                         <div className="col-span-2 md:col-span-5">
                             {settings.logoUrl && (
-                                <div className="mb-4 inline-flex items-center justify-center bg-white/95 rounded-full shadow-lg ring-4 ring-amber-400 w-36 h-36 sm:w-40 sm:h-40">
+                                <div className="mb-4 inline-flex items-center justify-center bg-white/95 rounded-full shadow-lg ring-4 ring-red-500 w-36 h-36 sm:w-40 sm:h-40">
                                     <Image
                                         src={settings.logoUrl}
                                         alt={`${settings.siteName} Logo`}
@@ -156,7 +160,7 @@ export default function Footer() {
                             <div className="space-y-3 mb-7 text-sm">
                                 {settings.contactAddress && (
                                     <div className="flex items-start gap-3">
-                                        <span className="mt-0.5 flex-shrink-0 w-8 h-8 rounded-full bg-amber-400/15 text-amber-300 flex items-center justify-center ring-1 ring-amber-300/30">
+                                        <span className="mt-0.5 flex-shrink-0 w-8 h-8 rounded-full bg-red-500/15 text-red-300 flex items-center justify-center ring-1 ring-red-400/30">
                                             <FiMapPin className="w-4 h-4" />
                                         </span>
                                         <span className="text-emerald-50">
@@ -164,27 +168,32 @@ export default function Footer() {
                                         </span>
                                     </div>
                                 )}
-                                {settings.contactPhone && (
+                                {phones.length > 0 && (
                                     <div className="flex items-start gap-3">
-                                        <span className="mt-0.5 flex-shrink-0 w-8 h-8 rounded-full bg-amber-400/15 text-amber-300 flex items-center justify-center ring-1 ring-amber-300/30">
+                                        <span className="mt-0.5 flex-shrink-0 w-8 h-8 rounded-full bg-red-500/15 text-red-300 flex items-center justify-center ring-1 ring-red-400/30">
                                             <FiPhone className="w-4 h-4" />
                                         </span>
-                                        <a
-                                            href={`tel:${settings.contactPhone.replace(/\s/g, "")}`}
-                                            className="text-emerald-50 hover:text-amber-300 transition-colors"
-                                        >
-                                            {settings.contactPhone}
-                                        </a>
+                                        <span className="flex flex-wrap gap-x-4 gap-y-1">
+                                            {phones.map((phone) => (
+                                                <a
+                                                    key={phone}
+                                                    href={telHref(phone)}
+                                                    className="text-emerald-50 hover:text-red-300 transition-colors"
+                                                >
+                                                    {phone}
+                                                </a>
+                                            ))}
+                                        </span>
                                     </div>
                                 )}
                                 {settings.contactEmail && (
                                     <div className="flex items-start gap-3">
-                                        <span className="mt-0.5 flex-shrink-0 w-8 h-8 rounded-full bg-amber-400/15 text-amber-300 flex items-center justify-center ring-1 ring-amber-300/30">
+                                        <span className="mt-0.5 flex-shrink-0 w-8 h-8 rounded-full bg-red-500/15 text-red-300 flex items-center justify-center ring-1 ring-red-400/30">
                                             <FiMail className="w-4 h-4" />
                                         </span>
                                         <a
                                             href={`mailto:${settings.contactEmail}`}
-                                            className="text-emerald-50 hover:text-amber-300 transition-colors"
+                                            className="text-emerald-50 hover:text-red-300 transition-colors"
                                         >
                                             {settings.contactEmail}
                                         </a>
@@ -216,7 +225,7 @@ export default function Footer() {
                             <div key={col.title + idx} className={idx === 0 ? "col-span-1 md:col-span-3" : "col-span-1 md:col-span-4"}>
                                 <h3 className="text-base font-bold text-white mb-4 relative inline-block">
                                     {col.title}
-                                    <span className="absolute -bottom-1.5 left-0 w-10 h-0.5 bg-amber-400 rounded-full" />
+                                    <span className="absolute -bottom-1.5 left-0 w-10 h-0.5 bg-red-500 rounded-full" />
                                 </h3>
                                 <ul className="space-y-2.5 text-sm mb-7">
                                     {(col.links || [])
@@ -229,17 +238,17 @@ export default function Footer() {
                                                         href={l.url}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="group inline-flex items-center text-emerald-100/90 hover:text-amber-300 transition-colors"
+                                                        className="group inline-flex items-center text-emerald-100/90 hover:text-red-300 transition-colors"
                                                     >
-                                                        <span className="inline-block w-0 group-hover:w-3 h-px bg-amber-400 mr-0 group-hover:mr-2 transition-all duration-300" />
+                                                        <span className="inline-block w-0 group-hover:w-3 h-px bg-red-500 mr-0 group-hover:mr-2 transition-all duration-300" />
                                                         {l.label}
                                                     </a>
                                                 ) : (
                                                     <Link
                                                         href={l.url}
-                                                        className="group inline-flex items-center text-emerald-100/90 hover:text-amber-300 transition-colors"
+                                                        className="group inline-flex items-center text-emerald-100/90 hover:text-red-300 transition-colors"
                                                     >
-                                                        <span className="inline-block w-0 group-hover:w-3 h-px bg-amber-400 mr-0 group-hover:mr-2 transition-all duration-300" />
+                                                        <span className="inline-block w-0 group-hover:w-3 h-px bg-red-500 mr-0 group-hover:mr-2 transition-all duration-300" />
                                                         {l.label}
                                                     </Link>
                                                 )}
@@ -247,16 +256,16 @@ export default function Footer() {
                                         ))}
                                 </ul>
 
-                                {idx === 1 && (settings.contactPhone || wa.enabled) && (
+                                {idx === 1 && (phones.length > 0 || wa.enabled) && (
                                     <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 ring-1 ring-white/10">
-                                        <p className="text-xs font-semibold tracking-widest uppercase text-amber-300 mb-1">
+                                        <p className="text-xs font-semibold tracking-widest uppercase text-red-300 mb-1">
                                             Need help with an order?
                                         </p>
                                         <div className="flex flex-wrap gap-2 mt-2">
-                                            {settings.contactPhone && (
+                                            {phones.length > 0 && (
                                                 <a
-                                                    href={`tel:${settings.contactPhone.replace(/\s/g, "")}`}
-                                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-emerald-950 font-semibold text-sm shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5"
+                                                    href={telHref(phones[0])}
+                                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-400 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5"
                                                 >
                                                     <FiPhone className="w-4 h-4" />
                                                     Call to Order
@@ -286,7 +295,7 @@ export default function Footer() {
                                 `© ${new Date().getFullYear()} ${settings.siteName}. All rights reserved.`}
                         </p>
                         <p className="font-medium">
-                            Crafted with care · <span className="text-amber-300">Developed by Md Manzurul Islam</span>
+                            <span className="text-red-300">Developed by Md Manzurul Islam</span>
                         </p>
                     </div>
                 </div>

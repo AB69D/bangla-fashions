@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 // Replaces the placeholder catalogue with a realistic storefront so the admin
 // dashboard and profit report show meaningful numbers:
-//   • 4 categories  : Men's Fashion, Women's Fashion, Mobiles, Headphones
+//   • 4 categories  : Men's Fashion, Women's Fashion, Men's Casual, Kids' Fashion
 //   • 16 products   : priced in BDT with per-variant cost prices (for margin)
 //   • ~55 orders    : spread across the last 30 days, with per-line cost
 //                     snapshots, a realistic status mix and a few POS sales
@@ -57,7 +57,7 @@ const pickDistinct = (arr, n) => {
 
 // ---------------------------------------------------------------------------
 // Catalogue definition. `weight` is repurposed as the variant label (clothing
-// size / storage). costPrice drives the profit/margin reporting.
+// size — S/M/L/XL, waist or age). costPrice drives the profit/margin reporting.
 // ---------------------------------------------------------------------------
 const CATALOG = [
     {
@@ -167,82 +167,115 @@ const CATALOG = [
         ],
     },
     {
-        name: 'Mobiles',
-        image: img('1511707171634-5f897ff02aa9'),
+        name: "Men's Casual",
+        image: img('1560243563-062bfc001d68'),
         products: [
             {
-                name: 'Samsung Galaxy A15',
-                cover: img('1574944985070-8f3ebc6b79d2'),
+                name: 'Half-Sleeve Cotton T-Shirt',
+                cover: img('1576566588028-4147f3842f27'),
                 description:
-                    '6.5" Super AMOLED display, 50MP triple camera and a 5000mAh battery with 25W fast charging. Official Samsung Bangladesh warranty.',
-                qa: [{ question: 'Is it official warranty?', answer: 'Yes, it carries the official Samsung Bangladesh 1-year warranty.' }],
+                    'Single-jersey 100% cotton tee with a regular fit and a ribbed crew neck that holds its shape. Machine wash cold and dry in the shade to keep the colour deep through a Dhaka summer.',
+                qa: [{ question: 'Will it shrink after washing?', answer: 'The fabric is bio-washed and pre-shrunk, so it keeps its size if you wash cold and skip the dryer.' }],
                 variants: [
-                    { weight: '128GB', price: 22999, costPrice: 19800, stock: 24 },
-                    { weight: '256GB', price: 25999, costPrice: 22600, stock: 15 },
+                    { weight: 'S', price: 450, costPrice: 260, stock: 80 },
+                    { weight: 'M', price: 450, costPrice: 260, stock: 96 },
+                    { weight: 'L', price: 450, costPrice: 260, stock: 74 },
+                    { weight: 'XL', price: 490, costPrice: 285, stock: 41 },
                 ],
             },
             {
-                name: 'Xiaomi Redmi Note 13',
-                cover: img('1580910051074-3eb694886505'),
+                name: 'Printed Round-Neck T-Shirt',
+                cover: img('1622445275576-721325763afe'),
                 description:
-                    '120Hz AMOLED screen, 108MP main camera and a 5000mAh battery with 33W charging. Flagship-grade specs at a mid-range price.',
+                    'Combed-cotton tee with a soft hand-feel print that will not crack or peel. Relaxed fit through the chest — wash inside out to protect the print.',
+                discountPercent: 12,
                 variants: [
-                    { weight: '128GB', price: 20999, costPrice: 17900, stock: 30 },
-                    { weight: '256GB', price: 24499, costPrice: 21300, stock: 17 },
+                    { weight: 'S', price: 520, costPrice: 300, stock: 58 },
+                    { weight: 'M', price: 520, costPrice: 300, stock: 66 },
+                    { weight: 'L', price: 520, costPrice: 300, stock: 49 },
+                    { weight: 'XL', price: 560, costPrice: 325, stock: 27 },
                 ],
             },
             {
-                name: 'Apple iPhone 13',
-                cover: img('1598327105666-5b89351aff97'),
+                name: 'Cotton Fotua',
+                cover: img('1602810318383-e386cc2a3ccf'),
                 description:
-                    'A15 Bionic chip, dual 12MP cameras with Cinematic mode and the Super Retina XDR display. Boxed with full accessories and warranty.',
-                qa: [{ question: 'Is it brand new?', answer: 'Yes, it is brand-new, factory-sealed with international warranty.' }],
-                variants: [{ weight: '128GB', price: 74999, costPrice: 68500, stock: 3 }],
+                    'Short-length fotua in handloom-textured cotton with a straight cut and side slits for easy movement. Light enough for daily wear and safe for a gentle machine wash.',
+                qa: [{ question: 'Can I wear it in hot weather?', answer: 'Yes — the loose weave breathes well and is made for humid Bangladeshi weather.' }],
+                variants: [
+                    { weight: 'M', price: 890, costPrice: 515, stock: 36 },
+                    { weight: 'L', price: 890, costPrice: 515, stock: 29 },
+                    { weight: 'XL', price: 950, costPrice: 550, stock: 5 },
+                ],
             },
             {
-                name: 'Realme C67',
-                cover: img('1592750475338-74b7b21085ab'),
+                name: 'Chino Pants',
+                cover: img('1624378439575-d8705ad7ae80'),
                 description:
-                    '108MP camera, 90Hz display and a 5000mAh battery with 33W SUPERVOOC charging. Sleek design with a premium leather-finish back.',
-                discountPercent: 8,
-                variants: [{ weight: '128GB', price: 18499, costPrice: 15600, stock: 21 }],
+                    'Mid-weight cotton-twill chinos with a slim-straight leg and a touch of stretch at the waist. Wash cold with like colours and hang dry — no ironing needed.',
+                discountPercent: 10,
+                variants: [
+                    { weight: '30', price: 1490, costPrice: 865, stock: 22 },
+                    { weight: '32', price: 1490, costPrice: 865, stock: 35 },
+                    { weight: '34', price: 1490, costPrice: 865, stock: 28 },
+                    { weight: '36', price: 1550, costPrice: 900, stock: 14 },
+                ],
             },
         ],
     },
     {
-        name: 'Headphones',
-        image: img('1505740420928-5e560c06d30e'),
+        name: "Kids' Fashion",
+        image: img('1519238263530-99bdd11df2ea'),
         products: [
             {
-                name: 'Sony WH-CH520 Wireless',
-                cover: img('1583394838336-acd977736f90'),
+                name: 'Kids Cotton T-Shirt Set',
+                cover: img('1543076447-215ad9ba6923'),
                 description:
-                    'Up to 50 hours of battery, DSEE upscaling and multipoint connection. Lightweight on-ear design tuned with Sony’s signature sound.',
-                qa: [{ question: 'How long does the battery last?', answer: 'Up to 50 hours on a full charge, with quick-charge for 1.5 hours in 3 minutes.' }],
-                variants: [{ weight: 'Standard', price: 5490, costPrice: 3850, stock: 40 }],
+                    'Two-piece set in skin-friendly cotton with an elastic-waist short and a loose tee that lets kids run around freely. Colour-fast dyes survive the frequent washes children need.',
+                qa: [{ question: 'Is the fabric safe for sensitive skin?', answer: 'Yes, it is soft combed cotton with azo-free dyes, safe for sensitive young skin.' }],
+                variants: [
+                    { weight: '2-3Y', price: 690, costPrice: 400, stock: 46 },
+                    { weight: '4-5Y', price: 690, costPrice: 400, stock: 52 },
+                    { weight: '6-7Y', price: 720, costPrice: 418, stock: 38 },
+                    { weight: '8-9Y', price: 750, costPrice: 435, stock: 21 },
+                ],
             },
             {
-                name: 'JBL Tune 510BT',
-                cover: img('1484704849700-f032a568e944'),
+                name: 'Boys Panjabi',
+                cover: img('1518831959646-742c3a14ebf7'),
                 description:
-                    'JBL Pure Bass sound, 40-hour battery and Speed Charge. Foldable, lightweight and ready to pair with two devices at once.',
-                discountPercent: 12,
-                variants: [{ weight: 'Standard', price: 4290, costPrice: 2950, stock: 55 }],
+                    'Festive cotton panjabi for boys with a neat embroidered placket and a comfortable straight fit. Pre-shrunk and easy to wash at home before the next Eid outing.',
+                variants: [
+                    { weight: '2-3Y', price: 950, costPrice: 550, stock: 25 },
+                    { weight: '4-5Y', price: 950, costPrice: 550, stock: 31 },
+                    { weight: '6-7Y', price: 990, costPrice: 575, stock: 24 },
+                    { weight: '8-9Y', price: 1020, costPrice: 590, stock: 16 },
+                ],
             },
             {
-                name: 'boAt Rockerz 450',
-                cover: img('1599669454699-248893623440'),
+                name: 'Girls Party Frock',
+                cover: img('1514090458221-65bb69cf63e6'),
                 description:
-                    '40mm drivers with boAt Signature Sound, up to 15 hours of playback and plush ear-cushions. The everyday wireless workhorse.',
-                variants: [{ weight: 'Standard', price: 2190, costPrice: 1320, stock: 70 }],
+                    'Layered net frock over a soft cotton lining so it looks festive without itching. Fitted bodice with a flared skirt — hand wash cold and dry flat to keep the net crisp.',
+                discountPercent: 15,
+                qa: [{ question: 'Is the net lining scratchy?', answer: 'No, the inner lining is full cotton, so only soft fabric touches the skin.' }],
+                variants: [
+                    { weight: '2-3Y', price: 1250, costPrice: 715, stock: 27 },
+                    { weight: '4-5Y', price: 1250, costPrice: 715, stock: 33 },
+                    { weight: '6-7Y', price: 1320, costPrice: 760, stock: 19 },
+                ],
             },
             {
-                name: 'Soundcore Life Q30',
-                cover: img('1577174881658-0f30ed549adc'),
+                name: 'Kids Denim Pant',
+                cover: img('1471286174890-9c112ffca5b4'),
                 description:
-                    'Hybrid active noise cancellation, Hi-Res certified drivers and a 40-hour battery. Custom EQ via the Soundcore app.',
-                qa: [{ question: 'Does it have noise cancellation?', answer: 'Yes, it features hybrid active noise cancellation with multiple modes.' }],
-                variants: [{ weight: 'Standard', price: 7990, costPrice: 5500, stock: 5 }],
+                    'Soft stretch denim with an adjustable inner-elastic waistband that grows with your child. Regular fit at the thigh, tapered at the ankle, and machine washable inside out.',
+                variants: [
+                    { weight: '2-3Y', price: 880, costPrice: 510, stock: 30 },
+                    { weight: '4-5Y', price: 880, costPrice: 510, stock: 34 },
+                    { weight: '6-7Y', price: 920, costPrice: 535, stock: 18 },
+                    { weight: '8-9Y', price: 950, costPrice: 550, stock: 3 },
+                ],
             },
         ],
     },

@@ -24,10 +24,20 @@ import { getWishlist, setWishlistEnabled } from "@/services/wishlist";
 import { useCustomerAuth } from "@/context/CustomerAuthContext";
 import { useCart } from "@/context/CartContext.jsx";
 import SearchBox from "@/components/SearchBox.jsx";
+import { splitPhones, telHref } from "@/lib/phone";
+
+// Shown in the mobile drawer until site-settings load, and whenever the admin
+// has not set a tagline of their own.
+const FALLBACK_TAGLINE = "A Fashion House of Deshi Brand";
 
 function Navbar() {
     const [categories, setCategories] = useState([]);
-    const [branding, setBranding] = useState({ siteName: "Ab9dEcommerce", logoUrl: "" });
+    const [branding, setBranding] = useState({
+        siteName: "Bangla Fashions",
+        logoUrl: "",
+        tagline: FALLBACK_TAGLINE,
+        contactPhone: "+880 1911-700793",
+    });
     // `brandingLoaded` flips true once site-settings resolve, so we never paint the
     // bundled fallback logo and then swap it for the admin one (the wrong-logo flash).
     // `logoReady` flips true once the actual <Image> has decoded — until then the
@@ -86,8 +96,13 @@ function Navbar() {
                 const data = await res.json();
                 if (data?.success && data.data) {
                     setBranding({
-                        siteName: data.data.siteName || "Ab9dEcommerce",
+                        siteName: data.data.siteName || "Bangla Fashions",
                         logoUrl: data.data.logoUrl || "",
+                        // An admin who clears the tagline gets no line at all;
+                        // the fallback only covers a setting that never arrived.
+                        tagline: data.data.tagline ?? FALLBACK_TAGLINE,
+                        // One field, possibly several numbers — dial the first.
+                        contactPhone: splitPhones(data.data.contactPhone)[0] || "",
                     });
                     // Mirror the wishlist feature flag so every product card's
                     // heart can respect the admin toggle without re-fetching.
@@ -140,6 +155,10 @@ function Navbar() {
         { href: "/about", label: "About Us", Icon: FiInfo },
         { href: "/contact", label: "Contact", Icon: FiPhone },
     ];
+
+    // "" when the admin has left the phone blank, which hides the drawer CTA
+    // rather than leaving a link that dials nothing.
+    const callHref = telHref(branding.contactPhone);
 
     return (
         <>
@@ -197,7 +216,7 @@ function Navbar() {
                                                         href={`/${encodeURIComponent(category.category_name.toLowerCase().replace(/\s+/g, "-"))}`}
                                                         className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-gray-800 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
                                                     >
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mr-2" />
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 mr-2" />
                                                         {category.category_name}
                                                     </Link>
                                                 ))
@@ -352,7 +371,7 @@ function Navbar() {
                                     <FiShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
                                 </span>
                                 {cartCount > 0 && (
-                                    <span className="absolute top-0 right-0 inline-flex items-center justify-center min-w-[18px] h-[18px] sm:min-w-[20px] sm:h-[20px] px-1 text-[10px] sm:text-xs font-bold leading-none text-emerald-950 transform translate-x-1/4 -translate-y-1/4 bg-amber-400 rounded-full border-2 border-white shadow-sm">
+                                    <span className="absolute top-0 right-0 inline-flex items-center justify-center min-w-[18px] h-[18px] sm:min-w-[20px] sm:h-[20px] px-1 text-[10px] sm:text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-500 rounded-full border-2 border-white shadow-sm">
                                         {cartCount}
                                     </span>
                                 )}
@@ -392,7 +411,7 @@ function Navbar() {
                                 className="absolute inset-0 opacity-[0.10] pointer-events-none"
                                 style={{
                                     backgroundImage:
-                                        "radial-gradient(circle at 0% 0%, #fbbf24 0, transparent 35%), radial-gradient(circle at 100% 100%, #10b981 0, transparent 40%)",
+                                        "radial-gradient(circle at 0% 0%, var(--theme-accent) 0, transparent 35%), radial-gradient(circle at 100% 100%, var(--theme-primary) 0, transparent 40%)",
                                 }}
                             />
                             <div className="relative flex items-center justify-between">
@@ -413,21 +432,23 @@ function Navbar() {
                                             />
                                         </div>
                                     ) : (
-                                        <span className="font-bold text-emerald-800">{branding.siteName}</span>
+                                        <span className="font-bold" style={{ color: "var(--theme-primary)" }}>{branding.siteName}</span>
                                     )}
                                 </Link>
                                 <button
                                     onClick={closeMobileMenu}
-                                    className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-emerald-50 ring-1 ring-white/20 hover:bg-amber-400 hover:text-emerald-950 hover:ring-amber-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                                    className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-emerald-50 ring-1 ring-white/20 hover:bg-red-500 hover:text-white hover:ring-red-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-400"
                                     aria-label="Close menu"
                                 >
                                     <FiX className="w-5 h-5" />
                                 </button>
                             </div>
 
-                            <p className="relative mt-4 text-xs uppercase tracking-[0.2em] text-amber-300 font-semibold">
-                                Pure · quality · Trusted
-                            </p>
+                            {branding.tagline && (
+                                <p className="relative mt-4 text-xs uppercase tracking-[0.2em] text-red-300 font-semibold">
+                                    {branding.tagline}
+                                </p>
+                            )}
                         </div>
                     </div>
 
@@ -444,7 +465,7 @@ function Navbar() {
                         <div className="p-4 border-b border-gray-100 dark:border-gray-800">
                             {customer ? (
                                 <div className="rounded-xl ring-1 ring-emerald-100 dark:ring-emerald-900/50 overflow-hidden">
-                                    <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-emerald-50 to-amber-50 dark:from-emerald-950/40 dark:to-amber-950/20">
+                                    <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-emerald-50 to-red-50 dark:from-emerald-950/40 dark:to-red-950/20">
                                         <span className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-emerald-600 text-white">
                                             <FiUser className="w-5 h-5" />
                                         </span>
@@ -500,7 +521,7 @@ function Navbar() {
                                     onClick={closeMobileMenu}
                                     className="group flex items-center gap-3 px-4 py-3 text-gray-800 dark:text-gray-100 hover:bg-emerald-50/60 dark:hover:bg-gray-900 transition-colors border-b border-gray-50 dark:border-gray-800"
                                 >
-                                    <span className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-amber-50 dark:from-emerald-950/40 dark:to-amber-950/20 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-100 dark:ring-emerald-900/50 group-hover:from-emerald-600 group-hover:to-emerald-700 group-hover:text-white group-hover:ring-emerald-600 group-hover:shadow-md group-hover:shadow-emerald-200/60 transition-all duration-200">
+                                    <span className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-red-50 dark:from-emerald-950/40 dark:to-red-950/20 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-100 dark:ring-emerald-900/50 group-hover:from-emerald-600 group-hover:to-emerald-700 group-hover:text-white group-hover:ring-emerald-600 group-hover:shadow-md group-hover:shadow-emerald-200/60 transition-all duration-200">
                                         <Icon className="w-[18px] h-[18px]" />
                                     </span>
                                     <span className="flex-1 font-medium text-[15px]">{label}</span>
@@ -513,7 +534,7 @@ function Navbar() {
                         <div className="px-4 pt-4">
                             <button
                                 onClick={() => setMobileCategoriesOpen(!mobileCategoriesOpen)}
-                                className="flex items-center justify-between w-full text-left rounded-xl bg-gradient-to-r from-emerald-50 to-amber-50 dark:from-emerald-950/40 dark:to-amber-950/20 px-4 py-3 ring-1 ring-emerald-100/70 dark:ring-emerald-900/50 hover:ring-emerald-200 transition-all"
+                                className="flex items-center justify-between w-full text-left rounded-xl bg-gradient-to-r from-emerald-50 to-red-50 dark:from-emerald-950/40 dark:to-red-950/20 px-4 py-3 ring-1 ring-emerald-100/70 dark:ring-emerald-900/50 hover:ring-emerald-200 transition-all"
                             >
                                 <span className="flex items-center gap-2">
                                     <span className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-gray-900 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-100 dark:ring-emerald-900/50 shadow-sm">
@@ -545,7 +566,7 @@ function Navbar() {
                                                 onClick={closeMobileMenu}
                                                 className="group flex items-center px-3 py-2.5 text-gray-700 dark:text-gray-200 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors rounded-lg hover:bg-emerald-50/60 dark:hover:bg-gray-900"
                                             >
-                                                <span className="w-1.5 h-1.5 bg-amber-400 rounded-full mr-3 group-hover:scale-150 transition-transform" />
+                                                <span className="w-1.5 h-1.5 bg-red-500 rounded-full mr-3 group-hover:scale-150 transition-transform" />
                                                 <span className="text-sm">{category.category_name}</span>
                                             </Link>
                                         ))
@@ -578,21 +599,23 @@ function Navbar() {
                     </div>
 
                     {/* Footer CTA inside drawer */}
-                    <div
-                        className="p-4 border-t border-gray-100 text-emerald-50"
-                        style={{ backgroundImage: "linear-gradient(to bottom right, var(--theme-footer-from), var(--theme-footer-to))" }}
-                    >
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-amber-300 font-semibold mb-2">
-                            Need help?
-                        </p>
-                        <a
-                            href="tel:+10000000000"
-                            className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-semibold text-sm shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5"
+                    {callHref && (
+                        <div
+                            className="p-4 border-t border-gray-100 text-emerald-50"
+                            style={{ backgroundImage: "linear-gradient(to bottom right, var(--theme-footer-from), var(--theme-footer-to))" }}
                         >
-                            <FiPhone className="w-4 h-4" />
-                            Call to Order
-                        </a>
-                    </div>
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-red-300 font-semibold mb-2">
+                                Need help?
+                            </p>
+                            <a
+                                href={callHref}
+                                className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-red-500 hover:bg-red-400 text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5"
+                            >
+                                <FiPhone className="w-4 h-4" />
+                                Call to Order
+                            </a>
+                        </div>
+                    )}
                 </div>
             </aside>
         </>

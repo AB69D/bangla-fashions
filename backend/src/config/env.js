@@ -34,7 +34,7 @@ const schema = z.object({
     CLOUDINARY_API_SECRET: z.string().min(1).optional(),
 
     API_KEY: z.string().optional(),
-    MAIL_FROM_NAME: z.string().default('Ab9dEcommerce'),
+    MAIL_FROM_NAME: z.string().default('Bangla Fashions'),
     MAIL_FROM_ADDRESS: z.string().email().optional(),
 
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),

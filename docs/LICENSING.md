@@ -32,9 +32,11 @@ openssl rsa -in license-private-key.pem -pubout -out license-public-key.pem
 
 ```bash
 LICENSE_PRIVATE_KEY_PATH=/path/to/license-private-key.pem \
-  node src/scripts/generate-license.js --client "Client Name" --domain shop.client.com --days 365
+  node src/scripts/generate-license.js --client "Bangla Fashions" --domain shop.client.com --days 365
 ```
 (কমান্ডটা `backend/` ফোল্ডারের ভেতর থেকে চালাতে হবে, dependency ইনস্টল করা থাকতে হবে — `npm install`)
+
+উপরের `shop.client.com` শুধু একটা placeholder — Bangla Fashions-এর storefront আসলে যে public domain-এ live হবে সেটাই `--domain`-এ বসাতে হবে (domain এখনো চূড়ান্ত না হলে deploy-এর আগে সেটা নিশ্চিত করে নিন)।
 
 Output-এ একটা লাইন পাবেন:
 ```

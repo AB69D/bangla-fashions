@@ -17,7 +17,7 @@ export const absoluteUrl = (path = "") => {
 // Build Organization + WebSite JSON-LD from the admin site settings. Returns an
 // array so the caller can render one <JsonLd> per node.
 export const buildSiteJsonLd = (settings = {}) => {
-    const siteName = settings?.siteName || "Ab9dEcommerce";
+    const siteName = settings?.siteName || "Bangla Fashions";
     const logo = absoluteUrl(settings?.logoUrl || "/logo.png");
     const sameAs = (settings?.socialLinks || [])
         .map((l) => l?.url)

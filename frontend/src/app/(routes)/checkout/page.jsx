@@ -327,8 +327,18 @@ export default function CheckoutPage() {
     const totalDiscount = items.reduce((sum, item) => sum + getItemDiscount(item), 0);
     const afterDiscount = subtotal - totalDiscount;
 
+    // Free delivery, mirroring clientOrder.route.js: when an admin has set a
+    // threshold (0 = off) and the cart reaches it, the server charges nothing for
+    // delivery. It compares `cart.totalAmount` — the after-item-discount total,
+    // before any coupon — so compare the same value here, or the summary would
+    // show a total the customer is never charged.
+    const freeDeliveryThreshold = Number(settings?.shipping?.freeDeliveryThreshold) || 0;
+    const baseDeliveryCharge = deliveryCharges[formData.deliveryArea];
+    const freeDelivery = freeDeliveryThreshold > 0 && (cart?.totalAmount ?? 0) >= freeDeliveryThreshold;
+    const deliveryCharge = freeDelivery ? 0 : baseDeliveryCharge;
+
     const couponDiscount = Math.min(appliedCoupon?.discount || 0, afterDiscount);
-    const totalAmount = Math.max(0, afterDiscount - couponDiscount) + deliveryCharges[formData.deliveryArea];
+    const totalAmount = Math.max(0, afterDiscount - couponDiscount) + deliveryCharge;
 
     if (orderPlaced && orderData) {
         return (
@@ -680,7 +690,14 @@ export default function CheckoutPage() {
                             )}
                             <div className="flex justify-between text-gray-600">
                                 <span>Shipping ({deliveryLabels[formData.deliveryArea]})</span>
-                                <span>{symbol}{deliveryCharges[formData.deliveryArea]}</span>
+                                {freeDelivery ? (
+                                    <span className="flex items-center gap-2">
+                                        <span className="text-gray-400 line-through">{symbol}{baseDeliveryCharge}</span>
+                                        <span className="font-semibold text-emerald-600">Free</span>
+                                    </span>
+                                ) : (
+                                    <span>{symbol}{deliveryCharge}</span>
+                                )}
                             </div>
                             <div className="flex justify-between font-bold text-gray-800 text-lg">
                                 <span>Total</span>

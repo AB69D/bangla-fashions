@@ -72,13 +72,15 @@ const CURRENCIES = [
     { code: "NPR", symbol: "Rs", name: "Nepalese Rupee" },
 ];
 
-// Storefront theme defaults — mirror the backend model so "Reset to brand
-// defaults" and any missing swatch fall back to the original emerald/amber look.
+// Storefront theme defaults — the Bangla Fashions palette (Bangladesh flag
+// bottle-green + flag red). Kept in step with the backend model and the
+// layout.js fallbacks so "Reset to brand" and any missing swatch land on the
+// same colours the storefront ships with.
 const THEME_DEFAULTS = {
-    navbarFrom: "#065f46", navbarVia: "#047857", navbarTo: "#064e3b", navbarText: "#ecfdf5",
-    footerFrom: "#064e3b", footerVia: "#065f46", footerTo: "#022c22",
-    homeFrom: "#ecfdf5", homeTo: "#ffffff",
-    primary: "#047857", accent: "#f59e0b",
+    navbarFrom: "#0E6E36", navbarVia: "#128A44", navbarTo: "#0A5228", navbarText: "#FFFFFF",
+    footerFrom: "#0E6E36", footerVia: "#0A5228", footerTo: "#06381B",
+    homeFrom: "#EAF7EF", homeTo: "#FFFFFF",
+    primary: "#128A44", accent: "#EC1F28",
 };
 const HEX_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 // Guarantee every colour sent to the API is a valid hex so one bad field can
@@ -124,7 +126,7 @@ function ColorField({ label, value, onChange, hint }) {
                     type="text"
                     value={value || ""}
                     onChange={(e) => onChange(e.target.value)}
-                    placeholder="#047857"
+                    placeholder="#128A44"
                     maxLength={7}
                     className={`${inputCls} font-mono uppercase`}
                 />
@@ -436,7 +438,7 @@ export default function SettingsPage() {
                             <div className="px-4 py-5 text-center text-xs text-gray-500" style={{ backgroundImage: `linear-gradient(180deg, ${theme.homeFrom}, ${theme.homeTo})` }}>
                                 <span className="inline-flex items-center gap-2">
                                     <span className="px-3 py-1.5 rounded-lg text-white text-xs font-semibold shadow" style={{ backgroundColor: theme.primary }}>Primary button</span>
-                                    <span className="px-3 py-1.5 rounded-lg text-xs font-semibold shadow" style={{ backgroundColor: theme.accent, color: "#3b2f00" }}>Accent</span>
+                                    <span className="px-3 py-1.5 rounded-lg text-xs font-semibold shadow" style={{ backgroundColor: theme.accent, color: "#ffffff" }}>Accent</span>
                                 </span>
                                 <p className="mt-2">Home background wash</p>
                             </div>
@@ -444,7 +446,7 @@ export default function SettingsPage() {
                                 className="h-14 flex items-center px-4"
                                 style={{ backgroundImage: `linear-gradient(to bottom, ${theme.footerFrom}, ${theme.footerVia}, ${theme.footerTo})` }}
                             >
-                                <span className="text-sm font-semibold text-emerald-50">Footer preview</span>
+                                <span className="text-sm font-semibold" style={{ color: theme.navbarText }}>Footer preview</span>
                             </div>
                         </div>
 
@@ -479,7 +481,7 @@ export default function SettingsPage() {
                             <h3 className="text-sm font-semibold text-gray-700">Brand accents</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <ColorField label="Primary" value={theme.primary} onChange={(v) => setTheme({ primary: v })} hint="Buttons, section underlines, highlights." />
-                                <ColorField label="Accent (gold)" value={theme.accent} onChange={(v) => setTheme({ accent: v })} hint="Top strips, badges, secondary highlights." />
+                                <ColorField label="Accent" value={theme.accent} onChange={(v) => setTheme({ accent: v })} hint="Top strips, badges, secondary highlights." />
                             </div>
                         </div>
                     </>
@@ -491,7 +493,7 @@ export default function SettingsPage() {
                             <input type="email" className={inputCls} value={settings.contactEmail || ""} onChange={(e) => setS({ contactEmail: e.target.value })} placeholder="store@example.com" />
                         </Field>
                         <Field label="Contact phone">
-                            <input className={inputCls} value={settings.contactPhone || ""} onChange={(e) => setS({ contactPhone: e.target.value })} placeholder="+1 555 000 0000" />
+                            <input className={inputCls} value={settings.contactPhone || ""} onChange={(e) => setS({ contactPhone: e.target.value })} placeholder="+880 1XXX-XXXXXX" />
                         </Field>
                         <Field label="Address">
                             <textarea rows={2} className={inputCls} value={settings.contactAddress || ""} onChange={(e) => setS({ contactAddress: e.target.value })} />

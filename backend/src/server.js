@@ -136,7 +136,7 @@ app.get('/readyz', async (_req, res) => {
 app.use(licenseGuard);
 
 app.get('/', (_req, res) =>
-    res.json({ success: true, message: 'Ab9dEcommerce API', env: env.NODE_ENV }),
+    res.json({ success: true, message: 'Bangla Fashions API', env: env.NODE_ENV }),
 );
 
 // Auth (stricter rate limit)

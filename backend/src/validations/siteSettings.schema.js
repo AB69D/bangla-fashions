@@ -126,7 +126,7 @@ const integrations = z
 
 // Accepts #rgb or #rrggbb (case-insensitive). Empty string is rejected so a
 // blank picker never wipes a colour to an invalid value.
-const hexColor = z.string().regex(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'Must be a hex colour like #047857');
+const hexColor = z.string().regex(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'Must be a hex colour like #128A44');
 
 // Storefront appearance. Every colour is optional so the admin can change one
 // swatch at a time; the flatten-for-set update merges it without clobbering the
