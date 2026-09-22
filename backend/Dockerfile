@@ -11,6 +11,10 @@ RUN addgroup -S app && adduser -S app -G app
 COPY --from=deps --chown=app:app /app/node_modules ./node_modules
 COPY --chown=app:app package.json ./
 COPY --chown=app:app src ./src
+# Mountpoint for the `uploads-data` volume. Created and chowned before the
+# drop to `app` so the volume comes up writable by the runtime user.
+ENV UPLOAD_DIR=/app/uploads
+RUN mkdir -p /app/uploads && chown -R app:app /app/uploads
 USER app
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

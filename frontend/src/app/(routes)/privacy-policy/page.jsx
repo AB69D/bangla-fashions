@@ -76,7 +76,7 @@ export default async function PrivacyPolicyPage() {
                                 </div>
                                 <div className="bg-gray-50 rounded-lg p-4">
                                     <h3 className="text-lg font-semibold text-gray-800 mb-2">2.4. Photos You Send Us</h3>
-                                    <p className="text-gray-700 leading-relaxed">Images you upload with a product review, or send with a return or exchange request so we can see the fault. Uploaded images are stored with our image host, Cloudinary.</p>
+                                    <p className="text-gray-700 leading-relaxed">Images you upload with a product review, or send with a return or exchange request so we can see the fault. Product and review images uploaded to this site are stored on our own server.</p>
                                 </div>
                                 <div className="bg-gray-50 rounded-lg p-4">
                                     <h3 className="text-lg font-semibold text-gray-800 mb-2">2.5. Cookies & Website Usage</h3>
@@ -115,7 +115,7 @@ export default async function PrivacyPolicyPage() {
                             <div className="ml-16 space-y-3">
                                 <p className="text-gray-700 leading-relaxed"><span className="font-semibold">4.1. Courier Partners:</span> Steadfast and other delivery partners receive your name, mobile number, address and, for cash-on-delivery parcels, the amount to collect.</p>
                                 <p className="text-gray-700 leading-relaxed"><span className="font-semibold">4.2. Payment Gateway:</span> SSLCommerz processes online payments and handles the card and mobile wallet details directly.</p>
-                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">4.3. Technical Service Providers:</span> Cloudinary hosts our product and customer-uploaded images, our email provider sends order and account emails, and analytics providers report anonymous site usage.</p>
+                                <p className="text-gray-700 leading-relaxed"><span className="font-semibold">4.3. Technical Service Providers:</span> Our email provider sends order and account emails, and analytics providers report anonymous site usage. Product and review images are kept on our own server, so no outside image host receives them.</p>
                                 <p className="text-gray-700 leading-relaxed"><span className="font-semibold">4.4. Legal & Business Transfers:</span> Where the law requires disclosure, or if the business is sold or merged, your data passes to the new owner under the same protections.</p>
                             </div>
                         </div>

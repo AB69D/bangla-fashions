@@ -1,0 +1,355 @@
+name: Deploy to Contabo VPS
+
+# Deploys the WHOLE stack (caddy + frontend + backend + mongo + mongo-backup) to
+# the Contabo VPS as one docker compose project in /opt/bangla-fashions.
+# This replaces the two workflows that used to live here: deploy-backend.yml
+# (backend only) and deploy-frontend.yml (storefront -> Vercel). The storefront
+# is no longer on Vercel, so there is exactly one deploy target now.
+#
+# Required repo secrets — Settings → Secrets and variables → Actions on THIS
+# repository. Secrets are per-repository and do NOT carry over from the repo
+# this code was forked from; until they are set here every run fails at the
+# preflight step below.
+#
+#   VPS_HOST                 required  VPS public IP or hostname (e.g. 94.136.184.197)
+#   VPS_SSH_PRIVATE_KEY_B64  required  deploy private key, base64-encoded (see below)
+#   VPS_USER                 optional  SSH user, defaults to "root"
+#   VPS_SSH_PORT             optional  SSH port, defaults to "22"
+#
+# The key is stored base64-encoded on purpose: a raw PEM in a GitHub secret is
+# fragile about trailing newlines and gets mangled often enough to be worth
+# avoiding. Produce the value with
+#     base64 -w0 < ~/.ssh/id_ed25519            # Linux
+#     base64 -i ~/.ssh/id_ed25519 | tr -d '\n'  # macOS
+# and put that single line in the secret. The matching public key must be in
+# the VPS's ~/.ssh/authorized_keys for VPS_USER.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'docker-compose.yml'
+      - 'Caddyfile'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch: # allow manual trigger from the Actions tab
+
+# One deploy at a time. cancel-in-progress stays false: a half-finished
+# `docker compose up --build` that got cancelled would leave the VPS in a state
+# nobody chose, so queue instead of interrupting.
+concurrency:
+  group: deploy-vps-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Generous: the Next.js image is built on the VPS, which is slower than CI.
+    timeout-minutes: 30
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER || 'root' }}
+      VPS_PORT: ${{ secrets.VPS_SSH_PORT || '22' }}
+    steps:
+      - name: Preflight — required repo secrets
+        env:
+          # Read through env rather than inlining ${{ }} into the script body,
+          # so the value is never part of the command text. Never `set -x` in
+          # this step or the next one.
+          VPS_SSH_PRIVATE_KEY_B64: ${{ secrets.VPS_SSH_PRIVATE_KEY_B64 }}
+        run: |
+          set -euo pipefail
+
+          missing=0
+          if [ -z "${VPS_HOST}" ]; then
+            echo "::error::Repo secret VPS_HOST is empty or not set. Add it under Settings → Secrets and variables → Actions (the VPS public IP or hostname)."
+            missing=1
+          fi
+          if [ -z "${VPS_SSH_PRIVATE_KEY_B64}" ]; then
+            echo "::error::Repo secret VPS_SSH_PRIVATE_KEY_B64 is empty or not set. Set it to the base64 of the deploy private key: base64 -w0 < ~/.ssh/id_ed25519"
+            missing=1
+          fi
+          # These two always resolve (they fall back to root / 22), so an empty
+          # value here means the fallback itself was edited out.
+          if [ -z "${VPS_USER}" ]; then
+            echo "::error::VPS_USER resolved to an empty value. Either unset the VPS_USER secret to take the 'root' default, or set it to a real SSH user."
+            missing=1
+          fi
+          if ! printf '%s' "${VPS_PORT}" | grep -qE '^[0-9]+$'; then
+            echo "::error::VPS_SSH_PORT must be a number (got '${VPS_PORT}'). Unset the secret to take the default of 22."
+            missing=1
+          fi
+          [ "$missing" -eq 0 ] || exit 1
+
+          echo "Target: ${VPS_USER}@${VPS_HOST}:${VPS_PORT}"
+
+      - name: Set up SSH
+        env:
+          VPS_SSH_PRIVATE_KEY_B64: ${{ secrets.VPS_SSH_PRIVATE_KEY_B64 }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          # Create the file at mode 600 BEFORE writing, so the key is never
+          # briefly world-readable. tr strips any stray whitespace or line
+          # wrapping the secret picked up on the way into GitHub — base64 has
+          # no whitespace in its alphabet, so this cannot corrupt a good value.
+          install -m 600 /dev/null ~/.ssh/id_deploy
+          if ! printf '%s' "${VPS_SSH_PRIVATE_KEY_B64}" | tr -d '[:space:]' | base64 -d > ~/.ssh/id_deploy 2>/dev/null; then
+            echo "::error::VPS_SSH_PRIVATE_KEY_B64 is not valid base64. Re-encode the key: base64 -w0 < ~/.ssh/id_ed25519 (macOS: base64 -i ~/.ssh/id_ed25519 | tr -d '\n')."
+            exit 1
+          fi
+
+          # OpenSSH rejects a key file with no trailing newline, and reports it
+          # as a misleading "invalid format" error.
+          if [ -s ~/.ssh/id_deploy ] && [ -n "$(tail -c1 ~/.ssh/id_deploy)" ]; then
+            printf '\n' >> ~/.ssh/id_deploy
+          fi
+
+          # Fail here, with something actionable, rather than as a cryptic auth
+          # failure three steps later. -P '' means an encrypted key fails fast
+          # instead of hanging on a passphrase prompt.
+          if ! ssh-keygen -y -P '' -f ~/.ssh/id_deploy >/dev/null 2>&1 </dev/null; then
+            echo "::error::VPS_SSH_PRIVATE_KEY_B64 decoded, but not into a usable private key. It must be an unencrypted OpenSSH private key (no passphrase), encoded whole, including the BEGIN/END lines."
+            exit 1
+          fi
+
+          # Pin the host key instead of turning host-key checking off. This is
+          # trust-on-first-use rather than a real pin, but it still stops a
+          # silent man-in-the-middle from collecting the deploy key later on.
+          install -m 600 /dev/null ~/.ssh/known_hosts
+          ssh-keyscan -T 15 -p "${VPS_PORT}" -H "${VPS_HOST}" > ~/.ssh/known_hosts 2>/dev/null || true
+          if [ ! -s ~/.ssh/known_hosts ]; then
+            echo "::error::ssh-keyscan got no host key from ${VPS_HOST}:${VPS_PORT}. Check VPS_HOST/VPS_SSH_PORT, that the VPS is up, and that its firewall allows GitHub runners."
+            exit 1
+          fi
+
+      - name: Verify SSH connectivity
+        run: |
+          set -euo pipefail
+          if ! ssh -i ~/.ssh/id_deploy \
+                 -o BatchMode=yes \
+                 -o StrictHostKeyChecking=yes \
+                 -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+                 -o ConnectTimeout=15 \
+                 -p "${VPS_PORT}" "${VPS_USER}@${VPS_HOST}" 'echo "SSH OK on $(hostname)"'; then
+            echo "::error::Could not SSH to ${VPS_USER}@${VPS_HOST}:${VPS_PORT}. Verify VPS_HOST/VPS_USER/VPS_SSH_PORT and that this key's public half is in that user's ~/.ssh/authorized_keys on the VPS."
+            exit 1
+          fi
+
+      - name: Deploy stack on the Contabo VPS
+        run: |
+          set -euo pipefail
+          # ServerAlive* keeps the session from being dropped during the long
+          # silent stretch while the frontend image builds on the VPS.
+          ssh -i ~/.ssh/id_deploy \
+              -o BatchMode=yes \
+              -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+              -o ConnectTimeout=15 \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=10 \
+              -p "${VPS_PORT}" "${VPS_USER}@${VPS_HOST}" bash -s <<'REMOTE'
+          set -euo pipefail
+
+          # The repo must be cloned to exactly this path during server setup.
+          # Clone it anywhere else and every run fails right here.
+          APP_DIR=/opt/bangla-fashions
+          if [ ! -d "$APP_DIR/.git" ]; then
+            echo "::error::$APP_DIR is not a git checkout on the VPS. Clone the repo there before the first deploy."
+            exit 1
+          fi
+          cd "$APP_DIR"
+
+          # Remember where we were, so a failed health gate can put it back.
+          OLD_SHA="$(git rev-parse HEAD)"
+          echo "Deploying over $(git rev-parse --short HEAD)"
+
+          # fetch + reset, never `git clean`: the VPS keeps untracked state in
+          # this directory that has to survive a deploy — the .env compose reads
+          # its secrets from, and ./backups where mongo-backup writes its dumps.
+          git fetch --quiet origin main
+          git reset --hard origin/main
+          echo "Now at $(git rev-parse --short HEAD)"
+
+          # Put the VPS back on the previous commit and rebuild it. Used for
+          # both failure modes below, so the checkout never stays parked on a
+          # commit that is not the one actually running.
+          rollback() {
+            echo "----- rolling back to ${OLD_SHA} -----"
+            git reset --hard "$OLD_SHA"
+            if ! docker compose up -d --build; then
+              echo "::error::Rollback to ${OLD_SHA} also failed to build. The VPS needs manual attention: ssh in, cd ${APP_DIR}, and check docker compose logs."
+              exit 1
+            fi
+            docker compose ps || true
+            echo "Rolled back to $(git rev-parse --short HEAD)"
+            exit 1
+          }
+
+          if ! docker compose up -d --build; then
+            echo "::error::docker compose up --build failed at $(git rev-parse --short HEAD)."
+            echo "----- docker compose logs --tail=50 -----"
+            docker compose logs --tail=50 || true
+            rollback
+          fi
+
+          # ================================================================
+          # Health gate
+          #
+          # The Host header below is load-bearing, not cosmetic. Caddy selects
+          # a site block by Host, and the Caddyfile only defines
+          # banglafashions.com and www.banglafashions.com — a request arriving
+          # as Host: 127.0.0.1 matches no site at all and Caddy answers 404. A
+          # naive `curl http://127.0.0.1/healthz` therefore fails against a
+          # perfectly healthy stack and would roll back every single deploy.
+          #
+          # Second subtlety: the Caddyfile declares its sites by hostname with
+          # no scheme, which turns on Caddy's automatic HTTPS — so port 80 is
+          # expected to answer with a 308 to https rather than with content. We
+          # therefore treat "Caddy matched the site" (200 OR a redirect) as the
+          # routing signal, and check the two apps' actual response bodies from
+          # inside their own containers, where no TLS is involved.
+          #
+          # We deliberately do NOT probe https://banglafashions.com from here:
+          # that depends on public DNS and an issued Let's Encrypt certificate,
+          # so the first deploy would fail for a reason unrelated to the code.
+          # ================================================================
+          HOST_HEADER="banglafashions.com"
+          LAST_FE_BODY=""
+          LAST_CADDY_CODES=""
+          CADDY_FAIL_REASON=""
+
+          contains_doctype() {
+            # Case-insensitive: Next.js emits "<!DOCTYPE html>".
+            case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+              *'<!doctype html'*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          # 1. The backend itself, from inside its own container — independent
+          #    of Caddy, so a failure here means the app is down, not the proxy.
+          app_ok() {
+            docker compose exec -T backend wget -qO- http://127.0.0.1:8080/healthz >/dev/null 2>&1
+          }
+
+          # 2. The storefront is serving HTML and not the API's JSON. Checked in
+          #    the frontend container because Caddy's port 80 only redirects.
+          frontend_ok() {
+            local body
+            body="$(docker compose exec -T frontend wget -qO- http://127.0.0.1:3000/ 2>/dev/null)" || return 1
+            LAST_FE_BODY="${body:0:200}"
+            contains_doctype "$body"
+          }
+
+          # Status code only — no -f, so any HTTP response is reported rather
+          # than turned into a curl error. Prints 000 if nothing is listening.
+          caddy_code() {
+            curl -s -o /dev/null -m 5 -w '%{http_code}' -H "Host: ${HOST_HEADER}" "http://127.0.0.1$1" 2>/dev/null || true
+          }
+
+          # 3. Caddy is up, parsed its config, and knows the site. 404 here is
+          #    the specific "no site matched the Host" failure described above.
+          caddy_ok() {
+            local health_code root_code body
+            health_code="$(caddy_code /healthz)"
+            root_code="$(caddy_code /)"
+            LAST_CADDY_CODES="/healthz=${health_code} /=${root_code}"
+            CADDY_FAIL_REASON=""
+            case "$health_code" in
+              200|301|302|307|308) ;;
+              404) CADDY_FAIL_REASON="/healthz returned 404 — no site block matched the Host header. Check the site addresses in the Caddyfile."; return 1 ;;
+              000) CADDY_FAIL_REASON="nothing answered on port 80 — the caddy container is not up yet, or failed to parse its config."; return 1 ;;
+              *)   CADDY_FAIL_REASON="/healthz returned ${health_code} — Caddy matched the site but could not reach backend:8080."; return 1 ;;
+            esac
+            case "$root_code" in
+              200|301|302|307|308) ;;
+              404) CADDY_FAIL_REASON="/ returned 404 — the catch-all handle block is missing or is not last in the Caddyfile."; return 1 ;;
+              *)   CADDY_FAIL_REASON="/ returned ${root_code} — Caddy matched the site but could not reach frontend:3000."; return 1 ;;
+            esac
+            # If Caddy answered / with content rather than a redirect, hold it
+            # to the same standard: the catch-all must reach the storefront,
+            # not the API. (Body read into a variable, not piped to head: a
+            # pipe closing early kills curl with SIGPIPE, which under pipefail
+            # reads as a failure even when the HTML was fine.)
+            if [ "$root_code" = "200" ]; then
+              if ! body="$(curl -fsS -m 15 -H "Host: ${HOST_HEADER}" http://127.0.0.1/ 2>/dev/null)"; then
+                CADDY_FAIL_REASON="/ answered 200 to a HEAD-style probe but the body could not be read."
+                return 1
+              fi
+              if ! contains_doctype "$body"; then
+                CADDY_FAIL_REASON="/ returned 200 but the body is not HTML — the catch-all is reaching the API instead of the storefront. First 200 bytes: ${body:0:200}"
+                return 1
+              fi
+            fi
+            return 0
+          }
+
+          app_up=0
+          fe_up=0
+          caddy_up=0
+          healthy=0
+          DEADLINE=$((SECONDS + 90))
+
+          echo "Health gate: polling up to 90s"
+          while :; do
+            if [ "$app_up" -eq 0 ] && app_ok; then
+              app_up=1
+              echo "  [ok] backend answers /healthz inside its container"
+            fi
+            if [ "$fe_up" -eq 0 ] && frontend_ok; then
+              fe_up=1
+              echo "  [ok] frontend serves HTML inside its container"
+            fi
+            if [ "$caddy_up" -eq 0 ] && caddy_ok; then
+              caddy_up=1
+              echo "  [ok] caddy matched Host: ${HOST_HEADER} (${LAST_CADDY_CODES})"
+            fi
+            if [ "$app_up" -eq 1 ] && [ "$fe_up" -eq 1 ] && [ "$caddy_up" -eq 1 ]; then
+              healthy=1
+              break
+            fi
+            if [ "$SECONDS" -ge "$DEADLINE" ]; then
+              break
+            fi
+            sleep 3
+          done
+
+          if [ "$healthy" -eq 1 ]; then
+            echo "Stack healthy at $(git rev-parse --short HEAD)"
+            # Repeated --build deploys leave dangling untagged images behind and
+            # will eventually fill the disk. This removes only untagged images;
+            # named volumes (uploads-data, mongo-data, caddy-data) are untouched.
+            docker image prune -f >/dev/null 2>&1 || true
+            exit 0
+          fi
+
+          echo "::error::Health gate failed — backend=${app_up} frontend=${fe_up} caddy=${caddy_up} (1 = passed). Rolling back to ${OLD_SHA}."
+          if [ "$app_up" -ne 1 ]; then
+            echo "  [fail] backend never answered /healthz inside its container — the app is down, not the proxy."
+          fi
+          if [ "$fe_up" -ne 1 ]; then
+            echo "  [fail] frontend did not return HTML on :3000. First 200 bytes seen:"
+            printf '%s\n' "${LAST_FE_BODY:-<empty or unreachable>}"
+          fi
+          if [ "$caddy_up" -ne 1 ]; then
+            echo "  [fail] caddy check failed for Host: ${HOST_HEADER} (${LAST_CADDY_CODES:-no response})."
+            echo "         ${CADDY_FAIL_REASON:-no diagnosis recorded}"
+          fi
+
+          # Logs BEFORE the rollback: these are the containers that actually
+          # failed. After the rollback they are gone, and their logs with them.
+          echo "----- docker compose ps -----"
+          docker compose ps || true
+          echo "----- docker compose logs --tail=50 -----"
+          docker compose logs --tail=50 || true
+
+          rollback
+          REMOTE

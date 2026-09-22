@@ -1,16 +1,22 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import multer from 'multer';
-import cloudinary from '../config/cloudinary.js';
 import ReviewModel from '../models/review.model.js';
 import { isFeatureEnabled } from '../lib/siteSettings.js';
+import { saveUploadBuffer, saveUploadImage } from '../middlewares/uploadImage.js';
 
 const storage = multer.memoryStorage();
 const upload = multer({
     storage,
     limits: { fileSize: 50 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+        // SVG is refused here even though the admin branding upload allows it:
+        // review media is submitted anonymously and is now served from our own
+        // domain rather than Cloudinary's, so a scripted SVG would be stored
+        // XSS on the storefront origin. Customers upload photos and clips.
+        if (file.mimetype.toLowerCase() === 'image/svg+xml') {
+            cb(new Error('SVG files are not allowed'), false);
+        } else if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
             cb(null, true);
         } else {
             cb(new Error('Only image and video files are allowed'), false);
@@ -18,37 +24,44 @@ const upload = multer({
     }
 });
 
-const uploadToCloudinary = async (file) => {
+// Containers browsers can actually play back. Anything else falls back to the
+// sanitised mimetype subtype below — the extension is never taken from the
+// client-supplied originalname.
+const VIDEO_EXT = {
+    'video/mp4': 'mp4',
+    'video/webm': 'webm',
+    'video/ogg': 'ogv',
+    'video/quicktime': 'mov',
+    'video/x-matroska': 'mkv',
+    'video/3gpp': '3gp',
+};
+
+const videoExtension = (mimetype) => {
+    const type = mimetype.toLowerCase();
+    if (VIDEO_EXT[type]) return VIDEO_EXT[type];
+    const subtype = type.split('/')[1]?.replace(/[^a-z0-9]/g, '');
+    return subtype || 'bin';
+};
+
+// Review media lands on the VPS disk under /uploads/reviews/<yyyy>/<mm>/, the
+// same contract as the product images: what we store is a RELATIVE url.
+const storeReviewMedia = async (file) => {
     const isVideo = file.mimetype.startsWith('video/');
 
     if (isVideo) {
-        return new Promise((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
-                {
-                    folder: "bangla-fashions/reviews",
-                    resource_type: "video",
-                    eager: [{ streaming_profile: "hd", format: "m3u8" }],
-                    eager_async: true
-                },
-                (error, result) => {
-                    if (result) resolve({ type: 'video', url: result.secure_url });
-                    else reject(error);
-                }
-            );
-            stream.end(file.buffer);
-        });
+        // Stored exactly as uploaded. Cloudinary used to transcode review
+        // clips to HLS (streaming_profile 'hd' -> m3u8) for adaptive playback;
+        // that went with it, since this image has no ffmpeg and adding
+        // transcoding was out of scope. Browsers play mp4/webm directly, which
+        // is enough for short clips. To restore it: add ffmpeg to the backend
+        // image and transcode out-of-band via a queue — never inline here, a
+        // 50 MB transcode would hold the request open for minutes.
+        const url = await saveUploadBuffer(file.buffer, videoExtension(file.mimetype), 'reviews');
+        return { type: 'video', url };
     }
 
-    return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-            { folder: "bangla-fashions/reviews", format: "webp" },
-            (error, result) => {
-                if (result) resolve({ type: 'image', url: result.secure_url });
-                else reject(error);
-            }
-        );
-        stream.end(file.buffer);
-    });
+    const url = await saveUploadImage(file.buffer, file.mimetype, 'reviews');
+    return { type: 'image', url };
 };
 
 const clientReviewRouter = Router();
@@ -92,7 +105,7 @@ clientReviewRouter.post('/create', upload.array('media', 5), async (req, res) =>
 
         let media = [];
         if (req.files && req.files.length > 0) {
-            const uploads = await Promise.all(req.files.map(uploadToCloudinary));
+            const uploads = await Promise.all(req.files.map(storeReviewMedia));
             media = uploads;
         }
 

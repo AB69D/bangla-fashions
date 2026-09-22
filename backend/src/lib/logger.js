@@ -17,7 +17,6 @@ export const logger = pino({
             '*.secret',
             'MONGODB_URI',
             'JWT_SECRET',
-            'CLOUDINARY_API_SECRET',
         ],
         remove: true,
     },

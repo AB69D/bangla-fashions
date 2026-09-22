@@ -1,11 +1,59 @@
-# Caddy reverse proxy on the Contabo VPS — backend-only (the Bangla Fashions
-# storefront is deployed separately; see frontend/.github/workflows/deploy.yml).
-# Currently serves HTTP on port 80 by IP (no domain yet).
-# When the Bangla Fashions domain points at this Contabo VPS, replace the `:80`
-# block with `api.yourdomain.com { reverse_proxy backend:8080 }` and Caddy will
-# auto-provision Let's Encrypt HTTPS.
+# Caddy reverse proxy on the Contabo VPS — the single process that binds host
+# ports 80/443. Everything else in the stack stays on the internal `app` network.
+#
+# TLS is automatic: once banglafashions.com and www.banglafashions.com both have
+# A records pointing at this VPS, Caddy provisions and renews Let's Encrypt
+# certificates on its own (the ACME challenge needs port 80 reachable from the
+# internet, and /data must stay on the caddy-data volume so certs survive a
+# restart). Nothing here needs editing to enable HTTPS.
+#
+# Routing, in the order Caddy evaluates it — the order is load-bearing:
+#   1. /api/revalidate  -> frontend. This is a Next.js App Router route handler
+#      (frontend/src/app/api/revalidate/route.js), NOT an Express route. Three
+#      admin pages POST to it via frontend/src/lib/revalidate.js to bust the ISR
+#      cache after a save. Sending it to the backend returns a 404, which fetch()
+#      resolves rather than rejects, so the helper's catch never fires and stale
+#      content just silently persists for the full 60s window. It must be matched
+#      before the /api/* rule below.
+#   2. /api/*           -> Express backend (every other API route).
+#   3. /uploads/*       -> Express backend, which serves product images off the
+#      uploads-data docker volume as static files.
+#   4. /healthz, /readyz -> backend liveness/readiness probes.
+#   5. everything else  -> Next.js frontend. This catch-all stays last.
 
-:80 {
+www.banglafashions.com {
+    redir https://banglafashions.com{uri} permanent
+}
+
+banglafashions.com {
     encode zstd gzip
-    reverse_proxy backend:8080
+
+    # Next.js owns this one - it is an App Router route handler, NOT an Express
+    # route. It must be matched BEFORE the /api/* rule below or ISR
+    # cache-busting breaks silently.
+    handle /api/revalidate {
+        reverse_proxy frontend:3000
+    }
+
+    handle /api/* {
+        reverse_proxy backend:8080
+    }
+
+    # Product images on the VPS disk, served by the backend from UPLOAD_DIR.
+    handle /uploads/* {
+        reverse_proxy backend:8080
+    }
+
+    handle /healthz {
+        reverse_proxy backend:8080
+    }
+
+    handle /readyz {
+        reverse_proxy backend:8080
+    }
+
+    # Catch-all — must remain the last handle block.
+    handle {
+        reverse_proxy frontend:3000
+    }
 }

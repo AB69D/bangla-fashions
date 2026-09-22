@@ -85,8 +85,9 @@ export const updateSettings = asyncHandler(async (req, res) => {
 });
 
 // POST /api/admin/site-settings/upload — upload a logo / favicon / og image.
-// The cloudinary middleware has already streamed the file and set req.file.path
-// to the hosted URL; we just hand that URL back so the form can save it.
+// The upload middleware has already written the file to disk and set
+// req.file.path to its relative /uploads/... URL; we just hand that URL
+// back so the form can save it.
 export const uploadSettingsImage = asyncHandler(async (req, res) => {
     if (!req.file?.path) throw ApiError.badRequest('No image was uploaded');
     req.audit?.({

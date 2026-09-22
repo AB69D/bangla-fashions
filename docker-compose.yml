@@ -1,5 +1,13 @@
 name: bangla-fashions
 
+# Container logs are unbounded by default and will eventually fill the VPS disk.
+# Every long-running service below reuses this cap: 10 MB per file, 3 files kept.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   mongo:
     image: mongo:7
@@ -12,6 +20,7 @@ services:
       - mongo-config:/data/configdb
     networks:
       - app
+    logging: *default-logging
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ping:1}).ok"]
       interval: 10s
@@ -31,17 +40,51 @@ services:
       PORT: 8080
       LOG_LEVEL: info
       FRONTEND_URL: ${FRONTEND_URL}
+      # Absolute public base URL of this API. SSLCommerz callbacks (success /
+      # fail / cancel / IPN) must be absolute URLs the gateway can reach.
+      PUBLIC_API_URL: ${PUBLIC_BACKEND_URL}
       MONGODB_URI: mongodb://${MONGO_APP_USER}:${MONGO_APP_PASSWORD}@mongo:27017/${MONGO_APP_DB}?authSource=admin
       JWT_SECRET: ${JWT_SECRET}
+      # Without this the backend calls process.exit(1) on boot when
+      # NODE_ENV=production (see backend/src/config/env.js).
+      LICENSE_KEY: ${LICENSE_KEY}
       ADMIN_EMAILS: ${ADMIN_EMAILS}
-      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
-      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
-      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      # Product images are written to the VPS disk, not to a CDN. This path is
+      # the uploads-data volume mounted below.
+      UPLOAD_DIR: /app/uploads
       API_KEY: ${BREVO_API_KEY}
       MAIL_FROM_NAME: ${MAIL_FROM_NAME}
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
+    volumes:
+      # CRITICAL: a named volume, not a bind or an anonymous mount. Uploaded
+      # product images live only here — drop this line and the next
+      # `docker compose up --build` silently wipes every image on the site.
+      - uploads-data:/app/uploads
     networks:
       - app
+    logging: *default-logging
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # NEXT_PUBLIC_* is inlined at BUILD time, so these have to be build args
+        # rather than runtime environment — changing either one later needs a
+        # full frontend image rebuild, not just a restart.
+        #
+        # The internal service URL is safe here: NEXT_PUBLIC_BACKEND_URL is only
+        # read server-side (next.config.mjs, app/sitemap.js, lib/dynamicContent.js,
+        # product/[id]/page.jsx, lp/[slug]/page.jsx — none are "use client").
+        # Browser code talks to the API over relative /api/* paths via Caddy.
+        NEXT_PUBLIC_BACKEND_URL: http://backend:8080
+        NEXT_PUBLIC_SITE_URL: https://banglafashions.com
+    restart: unless-stopped
+    depends_on:
+      - backend
+    # No host port mapping — Caddy is the only thing that binds the host.
+    networks:
+      - app
+    logging: *default-logging
 
   caddy:
     image: caddy:2-alpine
@@ -56,8 +99,10 @@ services:
       - caddy-config:/config
     depends_on:
       - backend
+      - frontend
     networks:
       - app
+    logging: *default-logging
 
   mongo-backup:
     image: mongo:7
@@ -70,8 +115,11 @@ services:
       MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
     volumes:
       - ./backups:/backups
+      # Read-only: this service only ever archives the uploads, never writes them.
+      - uploads-data:/uploads:ro
     networks:
       - app
+    logging: *default-logging
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
@@ -82,8 +130,16 @@ services:
           OUT=/backups/mongo-$$TS.archive.gz
           echo "[backup] dumping to $$OUT"
           mongodump --host mongo:27017 -u "$$MONGO_ROOT_USER" -p "$$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --archive=$$OUT --gzip
+          # Product images live on disk, not in Mongo. A Mongo-only backup would
+          # restore rows whose /uploads/... URLs point at files that are gone.
+          UP=/backups/uploads-$$TS.tar.gz
+          echo "[backup] archiving uploads to $$UP"
+          # Tolerate a non-zero exit (tar returns 1 if a file is written while it
+          # reads) — with `set -e` that would otherwise kill the nightly loop.
+          tar czf $$UP -C /uploads . || echo "[backup] WARNING: uploads archive exited non-zero"
           echo "[backup] pruning older than 7 days"
           find /backups -name 'mongo-*.archive.gz' -mtime +7 -delete
+          find /backups -name 'uploads-*.tar.gz' -mtime +7 -delete
           # sleep 24h
           sleep 86400
         done
@@ -93,6 +149,8 @@ volumes:
   mongo-config:
   caddy-data:
   caddy-config:
+  # Product image storage. Survives rebuilds; backed up nightly by mongo-backup.
+  uploads-data:
 
 networks:
   app:

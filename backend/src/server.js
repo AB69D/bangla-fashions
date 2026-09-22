@@ -15,6 +15,7 @@ import { licenseGuard } from './middlewares/license.middleware.js';
 import { errorHandler } from './middlewares/error.middleware.js';
 import { notFound } from './middlewares/notFound.middleware.js';
 import requireAuth from './middlewares/auth.middleware.js';
+import { UPLOAD_DIR } from './middlewares/uploadImage.js';
 import { auditMutations } from './lib/audit.js';
 import AdminModel from './models/admin.model.js';
 
@@ -132,6 +133,25 @@ app.get('/readyz', async (_req, res) => {
         return res.status(503).json({ status: 'not-ready', db: 'ping-failed' });
     }
 });
+
+// Product, category and review images live on this VPS's disk (the
+// `uploads-data` volume), not on a CDN. Mounted ahead of licenseGuard on
+// purpose: a lapsed licence should surface as an API error, not as a
+// storefront with every image missing. Filenames are uuids, so the cached
+// copies can be immutable.
+// Uploaded files are user-supplied bytes served from our OWN origin, and helmet
+// runs with contentSecurityPolicy disabled above. An SVG is a script carrier, so
+// without these headers an uploaded logo could run JS on banglafashions.com.
+// `sandbox` + a null CSP neuters any embedded script while still rendering the
+// image; nosniff stops a mislabelled file being re-interpreted as HTML.
+const uploadHeaders = (res) => {
+    res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+};
+app.use(
+    '/uploads',
+    express.static(UPLOAD_DIR, { immutable: true, maxAge: '1y', fallthrough: true, setHeaders: uploadHeaders }),
+);
 
 app.use(licenseGuard);
 

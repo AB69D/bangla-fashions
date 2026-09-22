@@ -40,7 +40,7 @@ The source logo and the business card these details come from are in [`docs/bran
 
 ## Licensing
 
-This project is built on a white-label e-commerce platform by **Md Manzurul Islam**, licensed to Bangla Fashions for its own storefront domain. One token can cover more than one host: [`backend/src/scripts/generate-license.js`](backend/src/scripts/generate-license.js) splits `--domain` on commas and signs a list of domains, which is what you need when the storefront and the backend answer on different hostnames. The backend verifies a signed `LICENSE_KEY` at boot and on every request when `NODE_ENV=production`, and refuses to start without one. The key has not been issued yet; issuing it for the live domain is on the go-live checklist below. See [docs/LICENSING.md](docs/LICENSING.md).
+This project is built on a white-label e-commerce platform by **Md Manzurul Islam**, licensed to Bangla Fashions for its own storefront domain. One token can cover more than one host: [`backend/src/scripts/generate-license.js`](backend/src/scripts/generate-license.js) splits `--domain` on commas and signs a list of domains, which is what you need when the storefront and the backend answer on different hostnames. The backend verifies a signed `LICENSE_KEY` at boot and on every request when `NODE_ENV=production`, and refuses to start without one. The licence for this deployment has been issued for `banglafashions.com`, and `isDomainLicensed()` strips a leading `www.` before comparing, so the apex token covers `www` too. The token itself lives in the server `.env` on the VPS, never in this repository.
 
 ## Features
 
@@ -63,7 +63,7 @@ This project is built on a white-label e-commerce platform by **Md Manzurul Isla
 
 - **Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS 4
 - **Backend:** Node.js 20+, Express, MongoDB/Mongoose
-- **Other:** Cloudinary (media), JWT auth, Zod validation, Pino logging, Docker + Caddy
+- **Other:** JWT auth, Zod validation, Pino logging, Docker + Caddy. Uploaded images are stored on the server's own disk (see Deployment), not on a third-party media host
 
 ## Structure
 
@@ -82,7 +82,7 @@ npm install
 npm start
 ```
 
-In development (`NODE_ENV=development`) no `LICENSE_KEY` is needed.
+In development (`NODE_ENV=development`) no `LICENSE_KEY` is needed. Uploaded images are written to `backend/uploads/` locally — `UPLOAD_DIR` defaults to `./uploads` and is set to `/app/uploads` in the container.
 
 ### Frontend
 
@@ -101,34 +101,52 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
 ## Deployment (Contabo VPS)
 
-The `docker-compose.yml` stack runs MongoDB, the API, a nightly Mongo backup job, and Caddy as the reverse proxy on the client's Contabo VPS:
+Everything runs as **one Docker Compose stack** on the client's Contabo VPS (Ubuntu 24.04, `94.136.184.197`), cloned to `/opt/bangla-fashions`. Only Caddy binds host ports; every other service talks over the internal compose network and is not reachable from the internet.
+
+| Service | What it is | Exposure |
+| --- | --- | --- |
+| `caddy` | Reverse proxy and TLS terminator, provisions Let's Encrypt certificates automatically | Host ports 80 / 443 |
+| `frontend` | Next.js storefront + admin/POS, built in `standalone` mode | Internal, behind Caddy |
+| `backend` | Express API, also serves the uploaded images | Internal, behind Caddy |
+| `mongo` | Single-node MongoDB 7, authentication on | Internal only |
+| `mongo-backup` | Nightly dump of the database and the uploads volume, 7-day retention | Internal only |
+
+The site answers on **banglafashions.com**, and `www.banglafashions.com` redirects to the apex. Caddy sends `/api/*` and `/uploads/*` to the backend and everything else to the frontend.
 
 ```bash
 cp .env.docker.example .env   # fill in real values — never commit this file
 docker compose up -d --build
 ```
 
-Caddy currently serves HTTP on port 80 by IP; once the domain points at the VPS, switch the `:80` block in [`Caddyfile`](Caddyfile) to the real hostname and Caddy provisions Let's Encrypt HTTPS automatically.
+### Product images are stored on the VPS disk
 
-Two workflows handle deploys, and both live in the repository-root `.github/workflows/` because that is the only directory GitHub Actions reads:
+There is no third-party media host. The backend writes uploads under `UPLOAD_DIR` (`/app/uploads` in the container, `./uploads` for local development) in dated folders — `/app/uploads/<yyyy>/<mm>/<uuid>.webp` — and stores the **relative** URL `/uploads/<yyyy>/<mm>/<uuid>.webp` in MongoDB. No hostname is baked into the database, so the same rows keep working if the domain changes. The backend serves that directory at `/uploads/*`, Caddy proxies it, and [`frontend/next.config.mjs`](frontend/next.config.mjs) rewrites `/uploads/:path*` to the backend as well, because `next/image`'s optimizer fetches a relative source against the Next server's own origin rather than through Caddy.
 
-- [`.github/workflows/deploy-backend.yml`](.github/workflows/deploy-backend.yml) — pushes to `main` touching `backend/`, `docker-compose.yml` or `Caddyfile` redeploy the API. It SSHes in and pulls into `/opt/bangla-fashions`, so the repo has to be cloned at exactly that path on the VPS.
-- [`.github/workflows/deploy-frontend.yml`](.github/workflows/deploy-frontend.yml) — pushes to `main` touching `frontend/` redeploy the storefront to Vercel, with `NEXT_PUBLIC_BACKEND_URL` pointing at this server. This one used to sit in `frontend/.github/workflows/`, left over from when the storefront was a separate repository. GitHub never looked there, so it never ran.
+That directory is the named Docker volume `uploads-data`, mounted at `/app/uploads`.
 
-Both workflows need their secrets set on this repository. Secrets do not travel with the code.
+> ⚠️ **`uploads-data` holds every product and review image on the site.** `docker compose up -d --build` and `docker compose down` leave it alone, but `docker compose down -v` or `docker volume rm` deletes it and the images are gone — the product rows then point at files that no longer exist. The nightly backup job covers this volume as well as the database, so a restore needs both.
 
-**Production boot requires a `LICENSE_KEY` issued for the storefront's public domain** — the domain customers actually visit, not the backend's own host. Without it the API refuses to start; with a key for the wrong domain every request returns `503 domain not licensed`.
+### Deploy flow
+
+Push to `main` → GitHub Actions ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)) SSHes into the VPS → `git reset --hard origin/main` in `/opt/bangla-fashions` → `docker compose up -d --build` → a health gate polls the stack until it answers. If the health check fails, the workflow rolls back to the previous commit, rebuilds it and leaves the last known-good stack serving, so a bad push does not take the shop offline.
+
+Four repository secrets drive it, set under **Settings → Secrets and variables → Actions** on this repository. Secrets do not travel with the code, and nothing deploys until the first two exist:
+
+| Secret | Value |
+| --- | --- |
+| `VPS_HOST` | VPS IP or hostname |
+| `VPS_SSH_PRIVATE_KEY_B64` | The deploy key's private half, base64-encoded — encoding survives the newline mangling a pasted PEM suffers |
+| `VPS_USER` | SSH user the deploy runs as; falls back to `root` when unset |
+| `VPS_SSH_PORT` | SSH port; falls back to `22` when unset |
+
+**Production boot requires a `LICENSE_KEY` issued for the storefront's public domain** — the domain customers actually visit, not the backend's own host. Without it the API refuses to start; with a key for the wrong domain every request returns `503 domain not licensed`. The token goes in the server `.env` on the VPS and nowhere in this repository.
 
 ## Before going live
 
-- [ ] Set `FRONTEND_URL` / `PUBLIC_BACKEND_URL` (`.env`) and `NEXT_PUBLIC_SITE_URL` (frontend) to the real domain, replacing the placeholder server IP. Canonical and openGraph URLs across the site derive from these, so a stale value there shows up in every share preview and in Google
-- [ ] Verify the real domain in Brevo (SPF + DKIM) and set `MAIL_FROM_ADDRESS` to a sender on it, e.g. `noreply@<the domain>`. Brevo rejects a gmail.com From address, so order emails will not send until this is done
-- [ ] Set `ADMIN_EMAILS` to the real admin accounts — this is what gates admin login
-- [ ] Issue the `LICENSE_KEY` for the live domain and put it in the server `.env`
-- [ ] Set the GitHub Actions secrets on this repository: `VPS_HOST`, `VPS_USER`, `VPS_SSH_PORT` and `VPS_SSH_PRIVATE_KEY` for the backend deploy, `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` for the frontend. Nothing deploys until these exist
-- [ ] Enter the site name, branch addresses, phone numbers and social links in the admin **Settings**, **Header** and **Layout** tabs. The schema defaults already carry the real tagline, the three branch addresses and the three phone numbers, so this is a confirmation pass rather than data entry
+- [ ] Point DNS at the VPS: `A` records for `@` and `www` on `banglafashions.com` → `94.136.184.197`. Caddy issues the certificates on the first request once DNS resolves
+- [ ] Add the Brevo API key and set `MAIL_FROM_ADDRESS` to a sender on `banglafashions.com` that is verified in Brevo (SPF + DKIM). Order and account emails do not send until both are done — Brevo rejects a gmail.com From address
+- [ ] Enter the SSLCommerz store ID and password in the admin **Settings → Payments** tab and switch the gateway on. Until then checkout offers cash on delivery only
 - [ ] Seed or upload the real apparel catalogue with sizes, stock and prices
-- [ ] Configure Cloudinary, SSLCommerz, Steadfast and WhatsApp credentials
 - [ ] Capture screenshots for this README once the real catalogue is loaded. The platform's old demo-store images have been removed, so the README currently shows none
 
 ## Notes
