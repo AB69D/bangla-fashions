@@ -31,7 +31,10 @@ const schema = z.object({
 
     API_KEY: z.string().optional(),
     MAIL_FROM_NAME: z.string().default('Bangla Fashions'),
-    MAIL_FROM_ADDRESS: z.string().email().optional(),
+    // An empty value in .env is a blank string, not undefined, so a bare
+    // `MAIL_FROM_ADDRESS=` would fail .email() and crash-loop the whole API
+    // over an optional feature. Treat blank as unset.
+    MAIL_FROM_ADDRESS: z.preprocess((v) => (v === '' ? undefined : v), z.string().email().optional()),
 
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
     RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
