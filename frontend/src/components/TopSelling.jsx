@@ -114,13 +114,11 @@ export default function TopSelling() {
         );
     }
 
-    if (products.length === 0) {
-        return (
-            <div className="w-full py-10 flex items-center justify-center">
-                <p className="text-gray-500 dark:text-gray-400">No products available</p>
-            </div>
-        );
-    }
+    // Top sellers are derived from orders, so a shop that has not sold anything yet
+    // has nothing to rank. Render nothing rather than parking an empty-state message
+    // in the middle of the home page — the New Arrivals and All Products rails above
+    // and below already show the catalogue.
+    if (products.length === 0) return null;
 
     const visibleProducts = products.slice(currentIndex, currentIndex + productsPerView);
 
