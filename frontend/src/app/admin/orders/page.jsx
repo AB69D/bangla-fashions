@@ -9,6 +9,21 @@ import { useWhatsApp } from "@/hooks/useWhatsApp";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import { useCurrency } from "@/context/CurrencyContext.jsx";
 
+// Order lines keep a snapshot of the product photo. When the product (and its
+// file) has been deleted the snapshot is blank or points at nothing, so show
+// the placeholder rather than a broken-image icon.
+function OrderItemThumb({ src, alt }) {
+    const [failedSrc, setFailedSrc] = useState(null);
+    if (!src || failedSrc === src) {
+        return (
+            <div className="w-full h-full flex items-center justify-center">
+                <FiPackage className="w-6 h-6 text-gray-400" />
+            </div>
+        );
+    }
+    return <img src={src} alt={alt} onError={() => setFailedSrc(src)} className="w-full h-full object-cover" />;
+}
+
 export default function AdminOrdersPage() {
     const wa = useWhatsApp();
     const { can } = useAdminAuth();
@@ -806,13 +821,7 @@ export default function AdminOrdersPage() {
                                     {selectedOrder.items?.map((item, index) => (
                                         <div key={index} className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl">
                                             <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                                                {item.productImage ? (
-                                                    <img src={item.productImage} alt={item.productName} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center">
-                                                        <FiPackage className="w-6 h-6 text-gray-400" />
-                                                    </div>
-                                                )}
+                                                <OrderItemThumb src={item.productImage} alt={item.productName} />
                                             </div>
                                             <div className="flex-1">
                                                 <p className="font-medium text-gray-800">{item.productName}</p>

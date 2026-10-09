@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import WishlistModel from '../models/wishlist.model.js';
+import ProductModel from '../models/product.model.js';
+import { findMissingProductIds, isObjectIdString, pruneWishlistsByProduct } from '../services/productCascade.js';
+import { logger } from '../lib/logger.js';
 
 // Public storefront wishlist. Like the cart, it is keyed by the anonymous
 // `guest-id` header (no customer login required) and echoes that id back so a
@@ -14,14 +17,31 @@ const ensureWishlist = async (guestId) => {
     return wishlist;
 };
 
+// Self-heal on read: the product delete cascade pulls a product from every
+// wishlist, but older ghosts (deleted before the cascade existed) and rows a
+// stale tab re-added would still link to a /product/<id> page that 404s. Drop
+// them and persist the removal. Never fail the fetch over it.
+const healWishlist = async (wishlist, guestId) => {
+    try {
+        const missing = await findMissingProductIds(wishlist.items.map((it) => it.productId));
+        if (missing.size === 0) return wishlist;
+        await pruneWishlistsByProduct([...missing], { guestId });
+        return (await WishlistModel.findOne({ guestId })) || wishlist;
+    } catch (err) {
+        logger.error({ err, guestId }, 'Wishlist self-heal failed');
+        return wishlist;
+    }
+};
+
 // GET /get — fetch (and lazily create) the guest's wishlist.
 clientWishlistRouter.get('/get', async (req, res) => {
     try {
         let guestId = getGuestId(req);
         if (!guestId) guestId = `guest_${Date.now()}`;
 
-        const wishlist = await ensureWishlist(guestId);
+        let wishlist = await ensureWishlist(guestId);
         if (wishlist.isNew) await wishlist.save();
+        else if (wishlist.items.length > 0) wishlist = await healWishlist(wishlist, guestId);
 
         res.setHeader('guest-id', guestId);
         res.json({ message: 'Wishlist data', data: wishlist, error: false, success: true });
@@ -48,9 +68,18 @@ clientWishlistRouter.post('/toggle', async (req, res) => {
 
         let added;
         if (idx > -1) {
+            // Removing is always allowed, so a ghost entry can still be cleared by hand.
             wishlist.items.splice(idx, 1);
             added = false;
         } else {
+            // Adding must point at a real product: a stale tab would otherwise
+            // re-add one that was just deleted.
+            if (!isObjectIdString(String(productId))) {
+                return res.status(400).json({ message: 'Invalid product id', error: true, success: false });
+            }
+            if (!(await ProductModel.exists({ _id: String(productId) }))) {
+                return res.status(404).json({ message: 'Product not found', error: true, success: false });
+            }
             wishlist.items.push({
                 productId: String(productId),
                 productName: productName || '',

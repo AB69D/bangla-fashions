@@ -6,6 +6,8 @@ import { useQuickView } from "@/context/QuickViewContext.jsx";
 import { useCurrency } from "@/context/CurrencyContext.jsx";
 import { addToCart } from "@/utils/cart.js";
 import { trackAddToCart } from "@/lib/tracking";
+import { useCatalogConfig } from "@/hooks/useSiteSettings";
+import { getProductImages, getProductCover } from "@/lib/productImages";
 
 // A centered modal that fetches full product detail on open, so a shopper
 // can compare a size, see the price, and add to cart without ever leaving
@@ -14,6 +16,7 @@ import { trackAddToCart } from "@/lib/tracking";
 export default function QuickViewModal() {
     const { product: summary, close } = useQuickView();
     const { symbol } = useCurrency();
+    const catalog = useCatalogConfig();
     const [full, setFull] = useState(null);
     const [loading, setLoading] = useState(false);
     const [selectedWeight, setSelectedWeight] = useState(0);
@@ -62,7 +65,12 @@ export default function QuickViewModal() {
 
     const product = full || summary;
     const currentWeight = product.weights?.[selectedWeight];
-    const image = currentWeight?.images?.[0] || product.cover_image || (product.weights?.[0]?.images?.[0]);
+    // Mode-aware: the picked size's photo in "variant" mode, the product's lead
+    // photo in "product" mode. Held back until settings load so the wrong photo
+    // never flashes (the modal is opened by a click, so this is rarely visible).
+    const image = catalog.ready
+        ? getProductImages(product, { mode: catalog.productImageMode, weightIndex: selectedWeight })[0]
+        : undefined;
     const hasDiscount = currentWeight?.discountPercent > 0;
     const unitPrice = currentWeight ? currentWeight.price - (currentWeight.price * (currentWeight.discountPercent || 0) / 100) : 0;
 
@@ -70,7 +78,7 @@ export default function QuickViewModal() {
         if (!currentWeight) return;
         setAdding(true);
         try {
-            await addToCart(product._id, quantity, currentWeight.weight, selectedWeight, currentWeight.price, currentWeight.discountPercent || 0, product.firstName, image || product.cover_image || "");
+            await addToCart(product._id, quantity, currentWeight.weight, selectedWeight, currentWeight.price, currentWeight.discountPercent || 0, product.firstName, image || getProductCover(product));
             trackAddToCart({ productId: product._id, name: product.firstName, price: unitPrice, quantity, currency: undefined });
             window.dispatchEvent(new Event("cart-updated"));
             setAdded(true);
@@ -102,9 +110,9 @@ export default function QuickViewModal() {
                     <div className="aspect-square bg-gray-100 dark:bg-gray-800 sm:rounded-l-3xl overflow-hidden relative">
                         {image ? (
                             <img src={image} alt={product.firstName} className="w-full h-full object-cover" />
-                        ) : (
+                        ) : catalog.ready ? (
                             <div className="w-full h-full flex items-center justify-center text-gray-400">No Image</div>
-                        )}
+                        ) : null}
                         {hasDiscount && (
                             <span className="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
                                 -{currentWeight.discountPercent}%

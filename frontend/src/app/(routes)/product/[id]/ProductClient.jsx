@@ -14,8 +14,6 @@ import {
     FiTruck,
     FiShield,
     FiRotateCcw,
-    FiChevronLeft,
-    FiChevronRight,
 } from "react-icons/fi";
 import { PiWhatsappLogoBold } from "react-icons/pi";
 import { addToCart } from "@/utils/cart";
@@ -26,8 +24,11 @@ import WishlistButton from "@/components/WishlistButton.jsx";
 import Reveal from "@/components/Reveal.jsx";
 import SocialProof from "@/components/SocialProof.jsx";
 import RecentlyViewed from "@/components/RecentlyViewed.jsx";
-import { recordView } from "@/services/recentlyViewed.js";
+import ProductGallery from "@/components/ProductGallery.jsx";
+import { recordView, removeView } from "@/services/recentlyViewed.js";
 import { useWhatsApp } from "@/hooks/useWhatsApp";
+import { useCatalogConfig } from "@/hooks/useSiteSettings";
+import { getProductImages, getProductCover } from "@/lib/productImages";
 import { splitPhones, telHref } from "@/lib/phone";
 
 const MINI_TRUST = [
@@ -38,10 +39,10 @@ const MINI_TRUST = [
 
 export default function ProductClient({ productId }) {
     const wa = useWhatsApp();
+    const catalog = useCatalogConfig();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [selectedImage, setSelectedImage] = useState(0);
     const [selectedWeight, setSelectedWeight] = useState(0);
     const [quantity, setQuantity] = useState(1);
     const [adding, setAdding] = useState(false);
@@ -53,7 +54,6 @@ export default function ProductClient({ productId }) {
     const { symbol, code } = useCurrency();
     const router = useRouter();
     const productRef = useRef(null);
-    const galleryRef = useRef(null);
     const ctaRef = useRef(null);
 
     useEffect(() => {
@@ -62,6 +62,9 @@ export default function ProductClient({ productId }) {
                 if (!productId) return;
 
                 const res = await fetch(`/api/client/product/product/${productId}`);
+                // Only a real 404 means the product is gone; a 5xx/network blip
+                // must not wipe the shopper's "recently viewed" entry for it.
+                if (res.status === 404) removeView(productId);
                 const data = await res.json();
 
                 if (data.success) {
@@ -150,7 +153,7 @@ export default function ProductClient({ productId }) {
                 body: JSON.stringify({
                     productId: product._id,
                     productName: product.firstName,
-                    productImage: product.cover_image,
+                    productImage: getProductCover(product),
                     quantity: quantity,
                     weight: product.weights[selectedWeight].weight,
                     weightIndex: selectedWeight,
@@ -206,7 +209,7 @@ export default function ProductClient({ productId }) {
                 body: JSON.stringify({
                     productId: product._id,
                     productName: product.firstName,
-                    productImage: product.cover_image,
+                    productImage: getProductCover(product),
                     quantity: quantity,
                     weight: currentWeight.weight,
                     weightIndex: selectedWeight,
@@ -240,24 +243,6 @@ export default function ProductClient({ productId }) {
             ...prev,
             [index]: !prev[index]
         }));
-    };
-
-    // Swipe-to-browse on the main gallery image (touch only — desktop uses
-    // the thumbnail rail). A pure horizontal-distance check keeps vertical
-    // page scrolling untouched.
-    const touchStartX = useRef(null);
-    const handleGalleryTouchStart = (e) => {
-        touchStartX.current = e.touches[0].clientX;
-    };
-    const handleGalleryTouchEnd = (e, imagesLength) => {
-        if (touchStartX.current === null) return;
-        const dx = e.changedTouches[0].clientX - touchStartX.current;
-        touchStartX.current = null;
-        if (Math.abs(dx) < 40) return;
-        setSelectedImage((prev) => {
-            if (dx < 0) return Math.min(prev + 1, imagesLength - 1);
-            return Math.max(prev - 1, 0);
-        });
     };
 
     if (loading) {
@@ -311,9 +296,9 @@ export default function ProductClient({ productId }) {
     }
 
     const currentWeight = product.weights?.[selectedWeight];
-    const allImages = currentWeight?.images?.length > 0
-        ? currentWeight.images
-        : (product.cover_image ? [product.cover_image] : []);
+    // Which photos to show depends on the store-wide image mode: in "variant"
+    // mode they follow the selected size, in "product" mode it is one gallery.
+    const galleryImages = getProductImages(product, { mode: catalog.productImageMode, weightIndex: selectedWeight });
     const hasDiscount = currentWeight?.discountPercent > 0;
     const unitPrice = currentWeight ? currentWeight.price - (currentWeight.price * (currentWeight.discountPercent || 0) / 100) : 0;
     const lowStock = currentWeight?.stock > 0 && currentWeight.stock <= 5;
@@ -327,93 +312,23 @@ export default function ProductClient({ productId }) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12">
                 {/* ---------------- Gallery ---------------- */}
                 <div className="order-1">
-                    <div
-                        ref={galleryRef}
-                        onTouchStart={handleGalleryTouchStart}
-                        onTouchEnd={(e) => handleGalleryTouchEnd(e, allImages.length)}
-                        className="relative aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl sm:rounded-3xl overflow-hidden mb-3 sm:mb-4 shadow-sm ring-1 ring-black/5 dark:ring-white/10 group"
-                    >
-                        {allImages.length > 0 ? (
-                            <img
-                                key={selectedImage}
-                                src={allImages[selectedImage]}
-                                alt={product.firstName}
-                                loading="eager"
-                                decoding="async"
-                                fetchPriority="high"
-                                className="w-full h-full object-cover fade-in sm:transition-transform sm:duration-500 sm:group-hover:scale-105"
-                            />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
-                                No Image
-                            </div>
-                        )}
-
-                        {hasDiscount && (
-                            <span className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-red-500 text-white text-xs sm:text-sm font-bold px-2.5 py-1 rounded-full shadow-sm">
-                                -{currentWeight.discountPercent}%
-                            </span>
-                        )}
-
-                        {allImages.length > 1 && (
-                            <>
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedImage((p) => Math.max(0, p - 1))}
-                                    disabled={selectedImage === 0}
-                                    className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 items-center justify-center w-9 h-9 rounded-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm shadow-md opacity-0 group-hover:opacity-100 disabled:opacity-0 transition-opacity"
-                                    aria-label="Previous image"
-                                >
-                                    <FiChevronLeft className="w-5 h-5 text-gray-700 dark:text-gray-200" />
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedImage((p) => Math.min(allImages.length - 1, p + 1))}
-                                    disabled={selectedImage === allImages.length - 1}
-                                    className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 items-center justify-center w-9 h-9 rounded-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm shadow-md opacity-0 group-hover:opacity-100 disabled:opacity-0 transition-opacity"
-                                    aria-label="Next image"
-                                >
-                                    <FiChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-200" />
-                                </button>
-
-                                {/* Swipe dots — mobile only, mirrors the hero slider's language */}
-                                <div className="sm:hidden absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/25 backdrop-blur-sm">
-                                    {allImages.map((_, i) => (
-                                        <span
-                                            key={i}
-                                            className="rounded-full transition-all duration-300"
-                                            style={
-                                                i === selectedImage
-                                                    ? { width: "1.25rem", height: "0.4rem", backgroundColor: "var(--theme-accent)" }
-                                                    : { width: "0.4rem", height: "0.4rem", backgroundColor: "rgba(255,255,255,0.75)" }
-                                            }
-                                        />
-                                    ))}
-                                </div>
-                            </>
-                        )}
-                    </div>
-
-                    {allImages.length > 1 && (
-                        <div className="hidden sm:flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-                            {allImages.map((img, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => setSelectedImage(index)}
-                                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all ${
-                                        selectedImage === index ? 'border-emerald-600 shadow-sm' : 'border-transparent opacity-70 hover:opacity-100 hover:border-gray-300 dark:hover:border-gray-600'
-                                    }`}
-                                >
-                                    <img
-                                        src={img}
-                                        alt={`${product.firstName} ${index + 1}`}
-                                        loading="lazy"
-                                        decoding="async"
-                                        className="w-full h-full object-cover"
-                                    />
-                                </button>
-                            ))}
-                        </div>
+                    {catalog.ready ? (
+                        <ProductGallery
+                            images={galleryImages}
+                            alt={product.firstName}
+                            autoSlide={catalog.autoSlide}
+                            intervalSeconds={catalog.autoSlideSeconds}
+                        >
+                            {hasDiscount && (
+                                <span className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-red-500 text-white text-xs sm:text-sm font-bold px-2.5 py-1 rounded-full shadow-sm">
+                                    -{currentWeight.discountPercent}%
+                                </span>
+                            )}
+                        </ProductGallery>
+                    ) : (
+                        // Settings decide which photos belong here; wait for them
+                        // rather than flash the wrong set.
+                        <div className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl sm:rounded-3xl mb-3 sm:mb-4 animate-pulse" />
                     )}
                 </div>
 
@@ -490,7 +405,6 @@ export default function ProductClient({ productId }) {
                                             disabled={isOut}
                                             onClick={() => {
                                                 setSelectedWeight(index);
-                                                setSelectedImage(0);
                                                 setQuantity(1);
                                             }}
                                             className={`relative px-4 py-2.5 rounded-xl border text-sm font-medium transition-all active:scale-95 ${
@@ -656,7 +570,7 @@ export default function ProductClient({ productId }) {
                                          >
                                              <div className="aspect-square bg-gray-100 dark:bg-gray-800 overflow-hidden">
                                                  <img
-                                                     src={item.cover_image || (item.weights?.[0]?.images?.[0]) || '/logo.png'}
+                                                     src={getProductCover(item) || '/logo.png'}
                                                      alt={item.firstName}
                                                      loading="lazy"
                                                      decoding="async"

@@ -53,6 +53,12 @@ clientProductRouter.get('/product/:id', async (req, res) => {
     try {
         const { id } = req.params;
 
+        // A malformed id can never match; answer 404 instead of a CastError 500 so
+        // the storefront (and crawlers) get a real not-found.
+        if (!/^[a-f\d]{24}$/i.test(id)) {
+            return res.status(404).json({ message: "Product not found", error: true, success: false });
+        }
+
         // Storefront only: a POS-only product must 404 here even via direct link.
         const product = await ProductModel.findOne({
             _id: id,
@@ -70,6 +76,68 @@ clientProductRouter.get('/product/:id', async (req, res) => {
         return res.json({
             message: "Product details",
             data: product,
+            error: false,
+            success: true
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false
+        });
+    }
+});
+
+// POST /api/client/product/by-ids  { ids: string[] }
+// Lets browser-held lists (recently viewed, wishlist ids) drop products that
+// were deleted or hidden and refresh the ones that still exist. Public, so the
+// projection is an allow-list that leaves out costPrice, sku and barcode.
+const BY_IDS_LIMIT = 24;
+const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
+
+clientProductRouter.post('/by-ids', async (req, res) => {
+    try {
+        const { ids } = req.body || {};
+
+        if (!Array.isArray(ids)) {
+            return res.status(400).json({
+                message: "ids must be an array",
+                error: true,
+                success: false
+            });
+        }
+
+        // Invalid entries are skipped, not rejected: a stale localStorage list
+        // may hold anything.
+        const wanted = [...new Set(
+            ids
+                .filter((id) => typeof id === 'string' && OBJECT_ID_RE.test(id))
+                .map((id) => id.toLowerCase())
+        )].slice(0, BY_IDS_LIMIT);
+
+        if (wanted.length === 0) {
+            return res.json({
+                message: "Product data",
+                data: [],
+                error: false,
+                success: true
+            });
+        }
+
+        const products = await ProductModel.find({
+            _id: { $in: wanted },
+            showInEcommerce: { $ne: false }
+        })
+            .select('firstName lastName cover_image gallery category weights.weight weights.price weights.discountPercent weights.stock weights.images')
+            .lean();
+
+        // $in does not preserve order; callers expect the order they sent.
+        const position = new Map(wanted.map((id, i) => [id, i]));
+        products.sort((a, b) => position.get(String(a._id)) - position.get(String(b._id)));
+
+        return res.json({
+            message: "Product data",
+            data: products,
             error: false,
             success: true
         });

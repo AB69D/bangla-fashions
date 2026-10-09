@@ -9,6 +9,16 @@ const socialLinkSchema = new mongoose.Schema(
     { _id: false },
 );
 
+// Storefront catalogue behaviour. Exported so any code that reads the settings
+// through `.lean()` (lib/siteSettings.js does) — which skips schema defaults —
+// can fall back to the same values the schema applies to hydrated documents.
+// Mirrored on the frontend in lib/catalogConfig.js.
+export const CATALOG_DEFAULTS = Object.freeze({
+    productImageMode: 'variant',
+    autoSlide: true,
+    autoSlideSeconds: 4,
+});
+
 const siteSettingsSchema = new mongoose.Schema(
     {
         // Singleton — there should only ever be one document.
@@ -189,6 +199,19 @@ const siteSettingsSchema = new mongoose.Schema(
         // existing store's delivery pricing is unchanged until an admin opts in.
         shipping: {
             freeDeliveryThreshold: { type: Number, default: 0, min: 0 },
+        },
+
+        // How product photos are modelled and shown on the storefront, store-wide.
+        //   'variant' — every size/weight has its own photos; the gallery swaps when
+        //               the shopper picks a size (the behaviour before this setting).
+        //   'product' — one gallery per product, shown as a slider for every size.
+        // Switching never deletes images: the storefront falls back to the other
+        // mode's photos when a product has none for the chosen mode. Documents saved
+        // before this block existed simply read as these defaults.
+        catalog: {
+            productImageMode: { type: String, enum: ['variant', 'product'], default: CATALOG_DEFAULTS.productImageMode },
+            autoSlide: { type: Boolean, default: CATALOG_DEFAULTS.autoSlide },
+            autoSlideSeconds: { type: Number, default: CATALOG_DEFAULTS.autoSlideSeconds, min: 2, max: 15 },
         },
 
         maintenanceMode: { type: Boolean, default: false },

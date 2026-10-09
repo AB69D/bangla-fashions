@@ -1,11 +1,31 @@
 import { Router } from 'express';
 import CartModel from '../models/cart.model.js';
 import ProductModel from '../models/product.model.js';
+import { findMissingProductIds, pruneCartsByProduct } from '../services/productCascade.js';
+import { logger } from '../lib/logger.js';
 
 const clientCartRouter = Router();
 
 const getGuestId = (req) => {
     return req.headers['guest-id'] || null;
+};
+
+// Self-heal on read. Deleting a product pulls it from every cart, but a cart can
+// still hold a line for a product that is gone (deleted before the cascade
+// existed, or written by a stale tab afterwards). Such a line can never be
+// bought: checkout would fail with a misleading "just sold out". Drop it and
+// recompute the stored total (checkout trusts it) in one atomic write, then
+// re-read. Never fail the cart fetch over it: on error serve the cart as stored.
+const healCart = async (cart, guestId) => {
+    try {
+        const missing = await findMissingProductIds(cart.items.map((item) => item.productId));
+        if (missing.size === 0) return cart;
+        await pruneCartsByProduct([...missing], { guestId });
+        return (await CartModel.findOne({ guestId })) || cart;
+    } catch (err) {
+        logger.error({ err, guestId }, 'Cart self-heal failed');
+        return cart;
+    }
 };
 
 clientCartRouter.get('/get', async (req, res) => {
@@ -24,6 +44,8 @@ clientCartRouter.get('/get', async (req, res) => {
                 totalAmount: 0
             });
             await cart.save();
+        } else if (cart.items.length > 0) {
+            cart = await healCart(cart, guestId);
         }
 
         res.setHeader('guest-id', guestId);

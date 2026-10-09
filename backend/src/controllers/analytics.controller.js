@@ -9,6 +9,28 @@ import { isFeatureEnabled } from '../lib/siteSettings.js';
 const REVENUE_STATUSES = { orderStatus: { $nin: ['cancelled', 'failed', 'returned'] } };
 const LOW_STOCK_THRESHOLD = 5;
 
+// The "top products" widgets are catalogue views, but they aggregate order-line
+// snapshots, so a deleted product used to keep ranking there forever (and its
+// image file is gone). Pipeline stages, to be placed right after `$unwind:'$items'`
+// and before the `$limit`, that drop a line only when its productId is a valid
+// ObjectId with no Product document. Lines with an empty/non-ObjectId productId
+// (legacy or manual sales) stay. Only the top-N lists use this: every revenue,
+// cost and profit total keeps reading all lines.
+const liveProductLines = () => [
+    { $addFields: { _pid: { $convert: { input: '$items.productId', to: 'objectId', onError: null, onNull: null } } } },
+    {
+        $lookup: {
+            from: ProductModel.collection.name,
+            localField: '_pid',
+            foreignField: '_id',
+            pipeline: [{ $project: { _id: 1 } }],
+            as: '_live',
+        },
+    },
+    { $match: { $expr: { $or: [{ $eq: [{ $ifNull: ['$_pid', null] }, null] }, { $gt: [{ $size: '$_live' }, 0] }] } } },
+    { $unset: ['_pid', '_live'] },
+];
+
 const startOfDay = (d) => {
     const x = new Date(d);
     x.setHours(0, 0, 0, 0);
@@ -77,12 +99,16 @@ export const getDashboardOverview = asyncHandler(async (req, res) => {
         ]),
         OrderModel.aggregate([
             { $unwind: '$items' },
+            ...liveProductLines(),
             {
                 $group: {
                     _id: '$items.productName',
                     qty: { $sum: '$items.quantity' },
                     revenue: { $sum: '$items.totalPrice' },
-                    image: { $first: '$items.productImage' },
+                    // $max, not $first: order lines whose file was removed with
+                    // the product have an empty image, and "" sorts below any URL,
+                    // so a line that still has a picture always wins.
+                    image: { $max: '$items.productImage' },
                 },
             },
             { $sort: { qty: -1 } },
@@ -333,13 +359,14 @@ export const getProfitReport = asyncHandler(async (req, res) => {
         OrderModel.aggregate([
             { $match: baseMatch },
             { $unwind: '$items' },
+            ...liveProductLines(),
             {
                 $group: {
                     _id: '$items.productName',
                     revenue: { $sum: '$items.totalPrice' },
                     cost: { $sum: costExpr },
                     qty: { $sum: '$items.quantity' },
-                    image: { $first: '$items.productImage' },
+                    image: { $max: '$items.productImage' },
                 },
             },
         ]),

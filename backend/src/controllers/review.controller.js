@@ -1,4 +1,6 @@
 import ReviewModel from "../models/review.model.js";
+import { deleteUploadFiles } from "../lib/uploadFiles.js";
+import { logger } from "../lib/logger.js";
 
 export const createReview = async (request, response) => {
     try {
@@ -74,6 +76,16 @@ export const deleteReview = async (request, response) => {
                 error: true,
                 success: false
             });
+        }
+
+        // The row is gone, so remove the photo/video files it owned. Best-effort:
+        // a failed unlink must not turn a successful delete into an error, and
+        // deleteUploadFiles keeps any file something else still references.
+        try {
+            const urls = (deletedReview.media || []).map((m) => m?.url).filter(Boolean);
+            if (urls.length > 0) await deleteUploadFiles(urls);
+        } catch (err) {
+            logger.error({ err, reviewId: id }, "Failed to remove review media files");
         }
 
         return response.json({

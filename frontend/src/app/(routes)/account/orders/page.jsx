@@ -23,6 +23,23 @@ const prettyStatus = (s) => String(s || "pending").replace(/_/g, " ");
 const formatDate = (d) =>
     d ? new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
 
+// Order lines keep a snapshot of the product photo. When the product (and its
+// file) has been deleted the snapshot is blank or points at nothing, so fall
+// back to the logo rather than a broken-image icon.
+function OrderItemImage({ src, alt }) {
+    const [failedSrc, setFailedSrc] = useState(null);
+    const usable = src && failedSrc !== src;
+    return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+            src={usable ? src : "/logo.png"}
+            alt={alt}
+            onError={() => setFailedSrc(src)}
+            className="w-12 h-12 rounded-lg object-cover bg-gray-50 ring-1 ring-gray-100"
+        />
+    );
+}
+
 function OrdersInner() {
     const money = useMoney();
     const router = useRouter();
@@ -126,12 +143,7 @@ function OrdersInner() {
                     <div className="px-5 py-4 space-y-3">
                         {(order.items || []).map((item, i) => (
                             <div key={i} className="flex items-center gap-3">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                    src={item.productImage || "/logo.png"}
-                                    alt={item.productName}
-                                    className="w-12 h-12 rounded-lg object-cover bg-gray-50 ring-1 ring-gray-100"
-                                />
+                                <OrderItemImage src={item.productImage} alt={item.productName} />
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-gray-800 truncate">{item.productName}</p>
                                     <p className="text-xs text-gray-500">

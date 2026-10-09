@@ -3,13 +3,17 @@ import { useEffect, useState, useCallback } from "react";
 import {
     FiSettings, FiTrash2, FiPlus, FiCheck, FiAlertCircle,
     FiType, FiPhone, FiShare2, FiSearch, FiLayout, FiSave, FiX,
-    FiToggleRight, FiPrinter, FiTag, FiActivity, FiDroplet, FiRotateCcw, FiCreditCard,
+    FiToggleRight, FiPrinter, FiTag, FiActivity, FiDroplet, FiRotateCcw, FiCreditCard, FiImage,
 } from "react-icons/fi";
 import { getSiteSettings, updateSiteSettings } from "@/services/siteSettings";
 import { getFooterSettings, updateFooterSettings } from "@/services/footer";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import { SITE_PAGES, PAGE_BY_PATH } from "@/lib/sitePages";
 import { revalidateTags } from "@/lib/revalidate";
+import {
+    normalizeCatalogConfig, DEFAULT_CATALOG_CONFIG, AUTO_SLIDE_MIN_SECONDS, AUTO_SLIDE_MAX_SECONDS,
+} from "@/lib/catalogConfig";
+import { refreshSiteSettings } from "@/hooks/useSiteSettings";
 import ImageUpload from "@/components/admin/ImageUpload";
 
 const TABS = [
@@ -18,6 +22,7 @@ const TABS = [
     { id: "contact", label: "Contact & Social", icon: <FiPhone className="w-4 h-4" /> },
     { id: "seo", label: "SEO & Currency", icon: <FiSearch className="w-4 h-4" /> },
     { id: "features", label: "Features", icon: <FiToggleRight className="w-4 h-4" /> },
+    { id: "catalog", label: "Product images", icon: <FiImage className="w-4 h-4" /> },
     { id: "pos", label: "POS & Receipt", icon: <FiPrinter className="w-4 h-4" /> },
     { id: "barcode", label: "Barcode & Labels", icon: <FiTag className="w-4 h-4" /> },
     { id: "integrations", label: "Analytics & WhatsApp", icon: <FiActivity className="w-4 h-4" /> },
@@ -40,6 +45,20 @@ const FEATURE_FLAGS = [
     ["analytics", "Web analytics", "Inject GA4 / Pixel / GTM tags into the storefront."],
     ["productReviews", "Product reviews", "Let shoppers rate and review products."],
     ["fakeOrderDetection", "Fake-order detection", "Flag suspicious orders (rapid repeat orders, high-return-rate phones) for manual review instead of auto-accepting them."],
+];
+
+// The two ways a store can organise product photos (Product images tab).
+const IMAGE_MODES = [
+    {
+        value: "variant",
+        title: "Per-size images",
+        description: "Each size has its own photos. The gallery changes when a shopper picks a size.",
+    },
+    {
+        value: "product",
+        title: "Product gallery",
+        description: "One set of photos for the whole product, shown as a slider for every size. The first photo is the cover.",
+    },
 ];
 
 // Common currencies for the settings dropdown. Picking one auto-fills BOTH the
@@ -177,6 +196,56 @@ function Toggle({ checked, onChange, label, hint }) {
     );
 }
 
+// Selectable card for one image mode. A real (visually hidden) radio sits inside
+// the label so arrow-key navigation, focus and the disabled state of the
+// surrounding <fieldset> all work natively; the card is styled off `peer`.
+function ModeCard({ mode, selected, onSelect }) {
+    const tile = selected ? "bg-indigo-200" : "bg-gray-200";
+    const tileAlt = selected ? "bg-indigo-300" : "bg-gray-300";
+    return (
+        <label className="relative block cursor-pointer">
+            <input
+                type="radio"
+                name="productImageMode"
+                value={mode.value}
+                checked={selected}
+                onChange={() => onSelect(mode.value)}
+                className="peer sr-only"
+            />
+            <div className="h-full rounded-xl border-2 border-gray-200 bg-white p-4 transition-colors hover:border-gray-300 peer-checked:border-indigo-600 peer-checked:bg-indigo-50/60 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 peer-focus-visible:ring-offset-2 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">
+                <span
+                    className={`absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full border-2 ${selected ? "border-indigo-600 bg-indigo-600 text-white" : "border-gray-300 bg-white"}`}
+                    aria-hidden="true"
+                >
+                    {selected && <FiCheck className="h-3 w-3" strokeWidth={3} />}
+                </span>
+                {/* Pictogram: decorative, the title and description carry the meaning. */}
+                <div className="mb-3 flex items-end gap-2" aria-hidden="true">
+                    {mode.value === "variant" ? (
+                        ["S", "M", "L"].map((size, i) => (
+                            <div key={size} className="flex flex-col items-center gap-1">
+                                <span className={`h-9 w-9 rounded-lg ${i === 1 ? tileAlt : tile}`} />
+                                <span className="text-[10px] font-semibold text-gray-500">{size}</span>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="flex flex-col gap-1.5">
+                            <span className={`h-9 w-24 rounded-lg ${tile}`} />
+                            <span className="flex items-center justify-center gap-1">
+                                <span className={`h-1.5 w-3 rounded-full ${selected ? "bg-indigo-600" : "bg-gray-400"}`} />
+                                <span className={`h-1.5 w-1.5 rounded-full ${tileAlt}`} />
+                                <span className={`h-1.5 w-1.5 rounded-full ${tileAlt}`} />
+                            </span>
+                        </div>
+                    )}
+                </div>
+                <p className="pr-7 text-sm font-semibold text-gray-800">{mode.title}</p>
+                <p className="mt-1 text-xs text-gray-500">{mode.description}</p>
+            </div>
+        </label>
+    );
+}
+
 export default function SettingsPage() {
     const { can } = useAdminAuth();
     const editable = can("content:write");
@@ -210,6 +279,7 @@ export default function SettingsPage() {
     const setPayment = (patch) => setSettings((p) => ({ ...p, payment: { ...(p.payment || {}), ...patch } }));
     const setTheme = (patch) => setSettings((p) => ({ ...p, theme: { ...(p.theme || {}), ...patch } }));
     const setShipping = (patch) => setSettings((p) => ({ ...p, shipping: { ...(p.shipping || {}), ...patch } }));
+    const setCatalog = (patch) => setSettings((p) => ({ ...p, catalog: { ...(p.catalog || {}), ...patch } }));
     const resetTheme = () => setSettings((p) => ({ ...p, theme: { ...THEME_DEFAULTS } }));
 
     const save = async () => {
@@ -283,6 +353,10 @@ export default function SettingsPage() {
                 shipping: {
                     freeDeliveryThreshold: Math.max(0, Number(settings.shipping?.freeDeliveryThreshold) || 0),
                 },
+                // Hand-listed payload: a key missing here silently never saves.
+                // Normalising also clamps the seconds field (kept as raw text
+                // while typing) and fills defaults for a pre-catalog document.
+                catalog: normalizeCatalogConfig(settings.catalog),
                 maintenanceMode: !!settings.maintenanceMode,
             };
             const fPayload = {
@@ -308,6 +382,10 @@ export default function SettingsPage() {
                 // Bust the storefront's cached fetch instead of it waiting out
                 // the 60s ISR window (see lib/dynamicContent.js).
                 revalidateTags(["site-settings", "footer"]);
+                // Refresh the shared client copy too, so other admin screens
+                // that read the product-image mode (product forms) see the
+                // change without a reload. Best-effort, never blocks the save.
+                refreshSiteSettings().catch(() => {});
                 setMsg({ type: "success", text: "Settings saved successfully" });
                 // Broadcast the (possibly new) currency so every surface in this tab
                 // — admin tables, POS, storefront — re-renders the symbol live,
@@ -345,6 +423,14 @@ export default function SettingsPage() {
     // Resolved palette for the Appearance tab (saved overrides on top of brand
     // defaults) — drives both the colour pickers and the live preview.
     const theme = { ...THEME_DEFAULTS, ...(settings.theme || {}) };
+
+    // Product-images tab. Mode / auto-slide go through the normaliser so a
+    // pre-catalog document shows the defaults; the seconds field stays RAW so
+    // clearing it or typing "1" on the way to "10" is not clamped mid-keystroke
+    // (it is clamped on blur and again on save).
+    const catalogCfg = normalizeCatalogConfig(settings.catalog);
+    const rawSeconds = settings.catalog?.autoSlideSeconds;
+    const secondsValue = rawSeconds === undefined || rawSeconds === null ? DEFAULT_CATALOG_CONFIG.autoSlideSeconds : rawSeconds;
 
     return (
         <div className="max-w-3xl">
@@ -601,6 +687,57 @@ export default function SettingsPage() {
                             </div>
                         ))}
                     </div>
+                )}
+
+                {tab === "catalog" && (
+                    <>
+                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-3">
+                            <h3 className="text-sm font-semibold text-gray-700">How product photos work</h3>
+                            <p className="text-xs text-gray-500 -mt-1">
+                                Store-wide: this applies to every product on the storefront.
+                            </p>
+                            <div role="radiogroup" aria-label="Product image mode" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {IMAGE_MODES.map((m) => (
+                                    <ModeCard
+                                        key={m.value}
+                                        mode={m}
+                                        selected={catalogCfg.productImageMode === m.value}
+                                        onSelect={(value) => setCatalog({ productImageMode: value })}
+                                    />
+                                ))}
+                            </div>
+                            <p className="text-xs text-gray-500">
+                                Switching mode never deletes images. A product with no images for the chosen mode
+                                falls back to the other mode&apos;s images.
+                            </p>
+                        </div>
+
+                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-3">
+                            <h3 className="text-sm font-semibold text-gray-700">Photo slider</h3>
+                            <Toggle
+                                label="Auto-slide photos"
+                                hint="Move to the next photo automatically on products with more than one. Pauses on hover and never runs for visitors who prefer reduced motion."
+                                checked={catalogCfg.autoSlide}
+                                onChange={(v) => setCatalog({ autoSlide: v })}
+                            />
+                            <div className="sm:w-56">
+                                <Field label="Seconds per photo" hint={`Between ${AUTO_SLIDE_MIN_SECONDS} and ${AUTO_SLIDE_MAX_SECONDS}.`}>
+                                    <input
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={AUTO_SLIDE_MIN_SECONDS}
+                                        max={AUTO_SLIDE_MAX_SECONDS}
+                                        step="1"
+                                        disabled={!catalogCfg.autoSlide}
+                                        className={`${inputCls} disabled:opacity-60 disabled:cursor-not-allowed`}
+                                        value={secondsValue}
+                                        onChange={(e) => setCatalog({ autoSlideSeconds: e.target.value })}
+                                        onBlur={() => setCatalog({ autoSlideSeconds: catalogCfg.autoSlideSeconds })}
+                                    />
+                                </Field>
+                            </div>
+                        </div>
+                    </>
                 )}
 
                 {tab === "pos" && (

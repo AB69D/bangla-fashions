@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCurrency } from "@/context/CurrencyContext.jsx";
-import { getRecentlyViewed, subscribeRecentlyViewed } from "@/services/recentlyViewed.js";
+import { getRecentlyViewed, subscribeRecentlyViewed, refreshRecentlyViewed } from "@/services/recentlyViewed.js";
 import Reveal from "./Reveal.jsx";
 
 // A personalization touch most competitor demos skip: "products you looked
@@ -15,6 +15,13 @@ export default function RecentlyViewed({ excludeId, title = "Recently Viewed" })
         setItems(getRecentlyViewed(excludeId));
         return subscribeRecentlyViewed((list) => setItems(list.filter((p) => p._id !== excludeId)));
     }, [excludeId]);
+
+    // Show the saved list instantly, then check it against the live catalogue:
+    // deleted products drop out and prices/photos refresh. Writes go through the
+    // same event as recordView, so the subscription above re-renders the list.
+    useEffect(() => {
+        refreshRecentlyViewed();
+    }, []);
 
     if (items.length === 0) return null;
 

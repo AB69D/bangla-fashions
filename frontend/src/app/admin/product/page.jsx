@@ -3,6 +3,18 @@ import { authFetch } from "@/services/api";
 import React, { useState, useEffect } from "react";
 import { FiUploadCloud, FiPlus, FiTrash2, FiChevronDown, FiChevronUp, FiLock } from "react-icons/fi";
 import { useAdminAuth } from "@/context/AdminAuthContext";
+import ProductImageManager, {
+    appendImagesToFormData,
+    countNewFiles,
+    useAdminCatalogConfig,
+    MAX_FILES_PER_REQUEST,
+    MAX_IMAGE_SIZES,
+} from "@/components/admin/ProductImageManager";
+
+// Stable per-row key so a size's image manager (and its blob: previews) stays
+// attached to the right row when an earlier size is removed.
+let weightKeySeq = 0;
+const newWeight = () => ({ _key: ++weightKeySeq, weight: "", stock: "", price: "", costPrice: "", sku: "", barcode: "", images: [] });
 
 // Mirror of the backend GS1 "internal use" (prefix 2) barcode so the admin can
 // preview/lock a code in the form. The server fills any blank code on save.
@@ -20,9 +32,12 @@ export default function CreateProductPage() {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
     const [categories, setCategories] = useState([]);
-    const [weights, setWeights] = useState([{ weight: "", stock: "", price: "", costPrice: "", sku: "", barcode: "", images: [] }]);
-    const [coverImage, setCoverImage] = useState(null);
-    const [coverImagePreview, setCoverImagePreview] = useState("");
+    const [weights, setWeights] = useState(() => [newWeight()]);
+    // Variant mode: one optional cover + photos per size. Product mode: a single gallery.
+    const [coverItems, setCoverItems] = useState([]);
+    const [galleryItems, setGalleryItems] = useState([]);
+    const catalog = useAdminCatalogConfig();
+    const productMode = catalog.config.productImageMode === "product";
     const [qaList, setQaList] = useState([{ question: "", answer: "" }]);
     const [qaExpanded, setQaExpanded] = useState(true);
     const [showInEcommerce, setShowInEcommerce] = useState(true);
@@ -42,34 +57,22 @@ export default function CreateProductPage() {
         fetchCategories();
     }, []);
 
-    const handleCoverImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setCoverImage(file);
-            setCoverImagePreview(URL.createObjectURL(file));
-        }
-    };
-
-    const handleWeightImageChange = (index, e) => {
-        const files = Array.from(e.target.files);
-        const newWeights = [...weights];
-        newWeights[index].images = files;
-        setWeights(newWeights);
+    // The form is long; bring the result banner into view after a submit.
+    const showMessage = (text) => {
+        setMessage(text);
+        if (text) window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
     const addWeight = () => {
-        setWeights([...weights, { weight: "", stock: "", price: "", costPrice: "", sku: "", barcode: "", images: [] }]);
+        setWeights((prev) => [...prev, newWeight()]);
     };
 
     const removeWeight = (index) => {
-        const newWeights = weights.filter((_, i) => i !== index);
-        setWeights(newWeights);
+        setWeights((prev) => prev.filter((_, i) => i !== index));
     };
 
     const updateWeight = (index, field, value) => {
-        const newWeights = [...weights];
-        newWeights[index][field] = value;
-        setWeights(newWeights);
+        setWeights((prev) => prev.map((w, i) => (i === index ? { ...w, [field]: value } : w)));
     };
 
     const addQA = () => {
@@ -89,17 +92,32 @@ export default function CreateProductPage() {
 
     const handleProductSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        if (!catalog.ready) return;
+        const form = e.currentTarget;
         setMessage("");
+
+        // Fail before uploading anything rather than as a server 400.
+        const newFiles = productMode
+            ? countNewFiles(galleryItems)
+            : countNewFiles(coverItems) + weights.reduce((sum, w) => sum + countNewFiles(w.images), 0);
+        if (newFiles > MAX_FILES_PER_REQUEST) {
+            showMessage(`Error: ${newFiles} photos selected, but at most ${MAX_FILES_PER_REQUEST} can be uploaded at once. Remove some and add them after saving.`);
+            return;
+        }
+        if (!productMode && weights.some((w, i) => i >= MAX_IMAGE_SIZES && countNewFiles(w.images) > 0)) {
+            showMessage(`Error: photos can only be attached to the first ${MAX_IMAGE_SIZES} sizes.`);
+            return;
+        }
+
+        setLoading(true);
 
         const filteredQA = qaList.filter(qa => qa.question.trim() && qa.answer.trim());
 
         const formData = new FormData();
 
-        formData.append("cover_image", coverImage);
-        formData.append("firstName", e.target.firstName.value);
-        formData.append("lastName", e.target.lastName.value);
-        formData.append("category", e.target.category.value);
+        formData.append("firstName", form.firstName.value);
+        formData.append("lastName", form.lastName.value);
+        formData.append("category", form.category.value);
         formData.append("weights", JSON.stringify(weights.map(w => ({
             weight: w.weight,
             stock: parseInt(w.stock) || 0,
@@ -108,15 +126,20 @@ export default function CreateProductPage() {
             sku: (w.sku || "").trim(),
             barcode: (w.barcode || "").trim()
         }))));
-        formData.append("description", e.target.description.value);
+        formData.append("description", form.description.value);
         formData.append("qa", JSON.stringify(filteredQA));
         formData.append("showInEcommerce", showInEcommerce);
 
-        weights.forEach((weight, index) => {
-            weight.images.forEach((file) => {
-                formData.append(`weight_images_${index}`, file);
+        // A new product only has files to send (no existing URLs yet). The server
+        // makes the first gallery image / the cover file the product's cover.
+        if (productMode) {
+            appendImagesToFormData(formData, "gallery_images", galleryItems);
+        } else {
+            appendImagesToFormData(formData, "cover_image", coverItems);
+            weights.forEach((weight, index) => {
+                appendImagesToFormData(formData, `weight_images_${index}`, weight.images);
             });
-        });
+        }
 
         try {
             const res = await authFetch(`/api/admin/product/upload-product`, {
@@ -126,18 +149,18 @@ export default function CreateProductPage() {
             const data = await res.json();
             
             if (data.success) {
-                setMessage(`Success: ${data.message}`);
-                e.target.reset();
-                setWeights([{ weight: "", stock: "", price: "", costPrice: "", sku: "", barcode: "", images: [] }]);
-                setCoverImage(null);
-                setCoverImagePreview("");
+                showMessage(`Success: ${data.message}`);
+                form.reset();
+                setWeights([newWeight()]);
+                setCoverItems([]);
+                setGalleryItems([]);
                 setQaList([{ question: "", answer: "" }]);
                 setShowInEcommerce(true);
             } else {
-                setMessage(`Error: ${data.message}`);
+                showMessage(`Error: ${data.message}`);
             }
         } catch (error) {
-            setMessage("Failed to submit. Please check your connection.");
+            showMessage("Failed to submit. Please check your connection.");
             console.error(error);
         } finally {
             setLoading(false);
@@ -169,23 +192,32 @@ export default function CreateProductPage() {
             )}
 
             <form onSubmit={handleProductSubmit} className="flex flex-col gap-4 sm:gap-5">
-                <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Cover Image</label>
-                    <div className="border border-dashed border-gray-300 rounded-lg p-3 sm:p-4 bg-gray-50 text-center hover:bg-gray-100 transition cursor-pointer">
-                        <input 
-                            type="file" 
-                            name="cover_image" 
-                            accept="image/*" 
-                            onChange={handleCoverImageChange}
-                            className="w-full text-xs sm:text-sm text-gray-500 file:mr-2 sm:file:mr-4 file:py-1.5 sm:file:py-2 file:px-3 sm:file:px-4 file:rounded-full file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" 
-                        />
-                    </div>
-                    {coverImagePreview && (
-                        <div className="mt-2">
-                            <img src={coverImagePreview} alt="Cover Preview" className="w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 object-cover rounded-lg" />
-                        </div>
-                    )}
-                </div>
+                {!catalog.ready ? (
+                    <div className="h-28 rounded-lg bg-gray-100 animate-pulse" aria-hidden="true" />
+                ) : productMode ? (
+                    <ProductImageManager
+                        label="Product Photos"
+                        hint="Shown as one slider for every size. The first photo is the cover."
+                        items={galleryItems}
+                        onChange={setGalleryItems}
+                        max={10}
+                        disabled={loading}
+                    />
+                ) : (
+                    <ProductImageManager
+                        label="Cover Image"
+                        items={coverItems}
+                        onChange={setCoverItems}
+                        max={1}
+                        showCoverBadge={false}
+                        disabled={loading}
+                    />
+                )}
+                {catalog.failed && (
+                    <p className="-mt-2 text-[11px] sm:text-xs text-amber-600">
+                        Could not read the store&apos;s image setting, so the default per-size photo layout is shown.
+                    </p>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 sm:gap-5">
                     <div>
@@ -258,7 +290,7 @@ export default function CreateProductPage() {
                     </div>
 
                     {weights.map((weight, index) => (
-                        <div key={index} className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-3 sm:mb-4 border">
+                        <div key={weight._key} className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-3 sm:mb-4 border">
                             <div className="flex items-center justify-between mb-2 sm:mb-3">
                                 <span className="text-xs sm:text-sm font-medium text-gray-600">Size {index + 1}</span>
                                 {weights.length > 1 && (
@@ -350,27 +382,17 @@ export default function CreateProductPage() {
                                     </div>
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Images for {weight.weight || 'this size'}</label>
-                                <div className="border border-dashed border-gray-300 rounded-lg p-2 sm:p-3 bg-white text-center">
-                                    <input 
-                                        type="file" 
-                                        multiple 
-                                        accept="image/*"
-                                        onChange={(e) => handleWeightImageChange(index, e)}
-                                        className="w-full text-[10px] sm:text-xs text-gray-500 file:mr-1 sm:file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-[10px] sm:file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" 
-                                    />
-                                </div>
-                                {weight.images.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 sm:gap-2 mt-2">
-                                        {Array.from(weight.images).map((file, i) => (
-                                            <span key={i} className="text-[10px] sm:text-xs bg-emerald-100 text-emerald-700 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
-                                                {file.name}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                            {catalog.ready && !productMode && (
+                                <ProductImageManager
+                                    label={`Images for ${weight.weight || "this size"}`}
+                                    items={weight.images}
+                                    onChange={(next) => updateWeight(index, "images", next)}
+                                    max={10}
+                                    showCoverBadge={false}
+                                    compact
+                                    disabled={loading}
+                                />
+                            )}
                         </div>
                     ))}
                 </div>
@@ -450,7 +472,7 @@ export default function CreateProductPage() {
                     )}
                 </div>
 
-                <button type="submit" disabled={loading} className="mt-4 sm:mt-6 flex items-center justify-center gap-2 w-full bg-emerald-600 text-white font-medium py-2.5 sm:py-3 rounded-lg shadow hover:bg-emerald-700 disabled:opacity-70 transition text-xs sm:text-sm">
+                <button type="submit" disabled={loading || !catalog.ready} className="mt-4 sm:mt-6 flex items-center justify-center gap-2 w-full bg-emerald-600 text-white font-medium py-2.5 sm:py-3 rounded-lg shadow hover:bg-emerald-700 disabled:opacity-70 transition text-xs sm:text-sm">
                     <FiUploadCloud className="w-4 h-4 sm:w-5 sm:h-5" /> {loading ? "Uploading..." : "Upload Product"}
                 </button>
             </form>

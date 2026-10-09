@@ -168,6 +168,18 @@ const theme = z
     })
     .partial();
 
+// Product-image behaviour. The validate() middleware replaces req.body with the
+// PARSED result and z.object strips unknown keys, so a block that is missing
+// from this schema is silently dropped before it reaches the controller. Every
+// key is optional so one knob can be changed without resending the others.
+const catalog = z
+    .object({
+        productImageMode: z.enum(['variant', 'product']),
+        autoSlide: z.boolean(),
+        autoSlideSeconds: z.coerce.number().int().min(2).max(15),
+    })
+    .partial();
+
 export const updateSiteSettingsSchema = z.object({
     siteName: z.string().min(1).max(100).optional(),
     tagline: z.string().max(200).optional(),
@@ -196,6 +208,7 @@ export const updateSiteSettingsSchema = z.object({
     analytics: analytics.optional(),
     whatsapp: whatsapp.optional(),
     theme: theme.optional(),
+    catalog: catalog.optional(),
     payment: payment.optional(),
     fraudRules: fraudRules.optional(),
     integrations: integrations.optional(),

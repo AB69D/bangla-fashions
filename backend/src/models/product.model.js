@@ -55,10 +55,42 @@ const qaSchema = new mongoose.Schema({
     }
 }, { _id: true });
 
+// Same rule as `imageUrl` in validations/siteSettings.schema.js, kept local so
+// the model does not depend on a zod schema file. A value is either an absolute
+// http(s) URL or a site-relative path with exactly ONE leading slash (a
+// protocol-relative `//host/x.png` would load from a third-party host). Empty
+// strings, backslashes, control characters and `..` segments are refused so a
+// stored path can never climb out of /uploads.
+export const isValidImageLocation = (value) => {
+    if (typeof value !== 'string' || value === '') return false;
+    if (value.includes('\\') || /[\u0000-\u001f]/.test(value)) return false;
+    if (/(?:^|\/)\.\.(?:\/|$)/.test(value)) return false;
+    if (/^https?:\/\//i.test(value)) {
+        try {
+            new URL(value);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+    return /^\/(?!\/)/.test(value);
+};
+
 const productSchema = new mongoose.Schema({
     cover_image: {
         type: String,
         default: ""
+    },
+    // Product-level photo gallery (store setting "Product gallery" mode): one
+    // set of photos shown as the slider for every size. Absent on legacy
+    // products, which keep using cover_image + weights[].images unchanged.
+    gallery: {
+        type: [String],
+        default: [],
+        validate: {
+            validator: (urls) => Array.isArray(urls) && urls.every(isValidImageLocation),
+            message: 'Each gallery image must be an http(s) URL or an uploaded path like /uploads/2026/09/image.webp'
+        }
     },
     firstName: {
         type: String,

@@ -2,8 +2,12 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import multer from 'multer';
 import ReviewModel from '../models/review.model.js';
+import ProductModel from '../models/product.model.js';
 import { isFeatureEnabled } from '../lib/siteSettings.js';
 import { saveUploadBuffer, saveUploadImage } from '../middlewares/uploadImage.js';
+import { deleteUploadFiles } from '../lib/uploadFiles.js';
+import { isObjectIdString } from '../services/productCascade.js';
+import { logger } from '../lib/logger.js';
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -67,6 +71,9 @@ const storeReviewMedia = async (file) => {
 const clientReviewRouter = Router();
 
 clientReviewRouter.post('/create', upload.array('media', 5), async (req, res) => {
+    // Declared outside the try so the catch can remove files that were already
+    // written when a later step (the DB save) fails.
+    let media = [];
     try {
         // Honour the admin "Product reviews" feature toggle.
         if (!(await isFeatureEnabled('productReviews'))) {
@@ -96,17 +103,38 @@ clientReviewRouter.post('/create', upload.array('media', 5), async (req, res) =>
             });
         }
 
-        // productId is optional; only attach it when it is a valid ObjectId so a
-        // malformed value can never break review submission.
+        // productId is optional (a general site review has none). When it IS
+        // sent it must name a product that exists: Review.product is the one real
+        // reference to a product, and a review for a deleted product would only
+        // be orphaned data (it also leaks onto the homepage carousel). Checked
+        // before any media is written so a rejected request leaves no files.
         let product = null;
-        if (productId && mongoose.Types.ObjectId.isValid(productId)) {
-            product = productId;
+        const rawProductId = typeof productId === 'string' ? productId.trim() : '';
+        if (rawProductId) {
+            if (!isObjectIdString(rawProductId)) {
+                return res.status(400).json({
+                    message: "Invalid product id",
+                    error: true,
+                    success: false
+                });
+            }
+            if (!(await ProductModel.exists({ _id: rawProductId }))) {
+                return res.status(404).json({
+                    message: "Product not found",
+                    error: true,
+                    success: false
+                });
+            }
+            product = rawProductId;
         }
 
-        let media = [];
         if (req.files && req.files.length > 0) {
-            const uploads = await Promise.all(req.files.map(storeReviewMedia));
-            media = uploads;
+            // allSettled, not all: if one file fails the others may already be on
+            // disk, and Promise.all would leave us no way to find and remove them.
+            const settled = await Promise.allSettled(req.files.map(storeReviewMedia));
+            media = settled.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+            const failed = settled.find((r) => r.status === 'rejected');
+            if (failed) throw failed.reason;
         }
 
         const review = new ReviewModel({ name, rating: numericRating, comment, media, product });
@@ -120,6 +148,12 @@ clientReviewRouter.post('/create', upload.array('media', 5), async (req, res) =>
         });
 
     } catch (error) {
+        // Nothing was saved, so nothing references the files: remove them.
+        if (media.length > 0) {
+            deleteUploadFiles(media.map((m) => m.url)).catch((err) => {
+                logger.error({ err }, 'Failed to remove review media after a failed submit');
+            });
+        }
         return res.status(500).json({
             message: error.message || error,
             error: true,
