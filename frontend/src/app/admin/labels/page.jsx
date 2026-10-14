@@ -4,6 +4,7 @@ import { getSiteSettings } from "@/services/siteSettings";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { FiSearch, FiPlus, FiX, FiPrinter, FiTag, FiTrash2, FiMinus } from "react-icons/fi";
 import Barcode from "@/components/Barcode";
+import { variantLabel } from "@/lib/productVariants";
 
 // Admin barcode-label sheet generator. Pick product variants, set how many
 // labels of each you want, and print a tiled sheet sized to the label stock
@@ -82,7 +83,7 @@ export default function LabelsPage() {
                 {
                     key,
                     name: product.firstName || product.productName || "Product",
-                    weight: w.weight || "",
+                    weight: variantLabel(w),
                     sku: w.sku || "",
                     barcode: w.barcode || w.sku || "",
                     price: Number(w.price) || 0,
@@ -264,7 +265,7 @@ export default function LabelsPage() {
                                                         <div key={i} className="flex items-center gap-3 p-3">
                                                             <div className="min-w-0 flex-1">
                                                                 <p className="text-sm text-gray-700">
-                                                                    {w.weight || "—"} · <span className="text-gray-500">{money(w.price)}</span>
+                                                                    {variantLabel(w) || "—"} · <span className="text-gray-500">{money(w.price)}</span>
                                                                 </p>
                                                                 <p className="text-[11px] text-gray-400 font-mono truncate">
                                                                     {w.barcode || "no barcode"}{w.sku ? ` · ${w.sku}` : ""}

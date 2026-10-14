@@ -11,6 +11,7 @@ export const DEFAULT_CATALOG_CONFIG = Object.freeze({
     productImageMode: "variant", // "variant" = photos per size, "product" = one gallery per product
     autoSlide: true,
     autoSlideSeconds: 4,
+    showStock: true, // false = shoppers never see how many units are left
 });
 
 export const AUTO_SLIDE_MIN_SECONDS = 2;
@@ -30,7 +31,8 @@ const clampSeconds = (value) => {
 //   - product mode only when the value is exactly "product" (anything else,
 //     including typos, keeps today's per-size behaviour);
 //   - autoSlide only turns off for an explicit boolean false;
-//   - autoSlideSeconds is rounded and clamped to 2..15.
+//   - autoSlideSeconds is rounded and clamped to 2..15;
+//   - showStock only turns off for an explicit boolean false.
 export function normalizeCatalogConfig(input) {
     const src = input && typeof input === "object" && "catalog" in input ? input.catalog : input;
     const c = src && typeof src === "object" ? src : {};
@@ -38,5 +40,6 @@ export function normalizeCatalogConfig(input) {
         productImageMode: c.productImageMode === "product" ? "product" : DEFAULT_CATALOG_CONFIG.productImageMode,
         autoSlide: typeof c.autoSlide === "boolean" ? c.autoSlide : DEFAULT_CATALOG_CONFIG.autoSlide,
         autoSlideSeconds: clampSeconds(c.autoSlideSeconds),
+        showStock: typeof c.showStock === "boolean" ? c.showStock : DEFAULT_CATALOG_CONFIG.showStock,
     };
 }

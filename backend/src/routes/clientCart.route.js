@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import CartModel from '../models/cart.model.js';
-import ProductModel from '../models/product.model.js';
+import ProductModel, { variantLabel } from '../models/product.model.js';
+import { isStockVisible } from '../lib/publicProduct.js';
 import { findMissingProductIds, pruneCartsByProduct } from '../services/productCascade.js';
 import { logger } from '../lib/logger.js';
 
@@ -8,6 +9,15 @@ const clientCartRouter = Router();
 
 const getGuestId = (req) => {
     return req.headers['guest-id'] || null;
+};
+
+// Why a quantity was refused. While stock is hidden from shoppers the message
+// must not carry the count either, or it would leak what the product page hides.
+const shortStockMessage = (showStock, available) => {
+    if (available <= 0) return 'This item is out of stock';
+    return showStock
+        ? `Only ${available} items available in stock`
+        : 'Sorry, that quantity is not available right now';
 };
 
 // Self-heal on read. Deleting a product pulls it from every cart, but a cart can
@@ -68,7 +78,7 @@ clientCartRouter.get('/get', async (req, res) => {
 
 clientCartRouter.post('/add', async (req, res) => {
     try {
-        const { productId, productName, productImage, quantity = 1, weight, weightIndex = 0 } = req.body;
+        const { productId, productName, productImage, quantity = 1, weightIndex = 0 } = req.body;
         let guestId = getGuestId(req);
 
         // Ensure weightIndex is a number
@@ -104,10 +114,11 @@ clientCartRouter.post('/add', async (req, res) => {
         const price = product.weights[weightIdx].price;
         const discountPercent = product.weights[weightIdx].discountPercent || 0;
 
+        const showStock = await isStockVisible();
         const availableStock = product.weights[weightIdx]?.stock || 0;
         if (availableStock < qty) {
             return res.status(400).json({
-                message: `Only ${availableStock} items available in stock`,
+                message: shortStockMessage(showStock, availableStock),
                 error: true,
                 success: false
             });
@@ -146,7 +157,9 @@ clientCartRouter.post('/add', async (req, res) => {
             const currentStock = product.weights[weightIdx]?.stock || 0;
             if (newQuantity > currentStock) {
                 return res.status(400).json({
-                    message: `Only ${currentStock} items available. You already have ${cart.items[existingItemIndex].quantity} in cart.`,
+                    message: showStock
+                        ? `Only ${currentStock} items available. You already have ${cart.items[existingItemIndex].quantity} in cart.`
+                        : 'Sorry, you cannot add more of this item right now',
                     error: true,
                     success: false
                 });
@@ -163,7 +176,8 @@ clientCartRouter.post('/add', async (req, res) => {
                 productName: productName || product.firstName || '',
                 productImage: productImage || product.cover_image || '',
                 quantity: qty,
-                weight: weight || '',
+                // Built from the product record, never the client: includes the colour.
+                weight: variantLabel(product.weights[weightIdx]),
                 weightIndex: weightIdx,
                 price: price,
                 discountPercent: discountPercent || 0
@@ -230,7 +244,7 @@ clientCartRouter.put('/update', async (req, res) => {
                     const availableStock = product.weights[cartItem.weightIndex]?.stock || 0;
                     if (newQty > availableStock) {
                         return res.status(400).json({
-                            message: `Only ${availableStock} items available in stock`,
+                            message: shortStockMessage(await isStockVisible(), availableStock),
                             error: true,
                             success: false
                         });

@@ -99,6 +99,69 @@ const resolveImageItems = (items, { label, uploaded, allowed }) => {
     return urls;
 };
 
+const HEX_COLOR_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+const MAX_COLORS = 20;
+const MAX_COLOR_NAME = 30;
+
+// The colours a product is sold in, as the admin typed them in the product
+// form: [{ name, hex }]. `hex` is only the swatch the storefront paints, so it
+// may be blank; the name is what variants and orders refer to.
+const normalizeColors = (raw) => {
+    const list = parseJsonField(raw, 'colors');
+    if (list === undefined || list === null || list === '') return [];
+    if (!Array.isArray(list)) throw ApiError.badRequest('Invalid colors format');
+    if (list.length > MAX_COLORS) throw ApiError.badRequest(`A product can have at most ${MAX_COLORS} colors`);
+
+    const seen = new Set();
+    return list.map((item, index) => {
+        const n = index + 1;
+        if (!item || typeof item !== 'object' || Array.isArray(item)) throw ApiError.badRequest(`Color ${n} is invalid`);
+        const name = String(item.name ?? '').trim();
+        if (!name) throw ApiError.badRequest(`Color ${n}: name is required`);
+        if (name.length > MAX_COLOR_NAME) throw ApiError.badRequest(`Color ${n}: name is too long (max ${MAX_COLOR_NAME} characters)`);
+        const key = name.toLowerCase();
+        if (seen.has(key)) throw ApiError.badRequest(`Color "${name}" is listed twice`);
+        seen.add(key);
+        const hex = String(item.hex ?? '').trim();
+        if (hex && !HEX_COLOR_RE.test(hex)) {
+            throw ApiError.badRequest(`Color "${name}": the swatch must be a hex color like #D32F2F`);
+        }
+        return { name, hex };
+    });
+};
+
+// A variant is one size in one colour, so once a product lists colours every
+// variant has to name one of them, and a product without colours can't carry
+// any. Matching ignores case; the stored spelling is the one from the colour
+// list, so the storefront can group variants by an exact string.
+const applyVariantColors = (weights, colors) => {
+    const byKey = new Map(colors.map((c) => [c.name.toLowerCase(), c.name]));
+    const resolved = weights.map((w, index) => {
+        const n = index + 1;
+        const chosen = String(w.color ?? '').trim();
+        if (!byKey.size) {
+            if (chosen) throw ApiError.badRequest(`Variant ${n}: color "${chosen}" is not in the product's color list`);
+            return { ...w, color: '' };
+        }
+        if (!chosen) throw ApiError.badRequest(`Variant ${n}: choose a color`);
+        const canonical = byKey.get(chosen.toLowerCase());
+        if (!canonical) throw ApiError.badRequest(`Variant ${n}: color "${chosen}" is not in the product's color list`);
+        return { ...w, color: canonical };
+    });
+    if (byKey.size) {
+        // One row per size per colour: a second one is a shopper-facing duplicate.
+        const seen = new Set();
+        for (const w of resolved) {
+            const key = `${String(w.weight ?? '').trim().toLowerCase()}|${w.color.toLowerCase()}`;
+            if (seen.has(key)) {
+                throw ApiError.badRequest(`${String(w.weight ?? '').trim()} in ${w.color} is listed twice`);
+            }
+            seen.add(key);
+        }
+    }
+    return resolved;
+};
+
 // One edited size/variant -> the document stored in product.weights. Images
 // are only touched when the client sent them; a variant without an `images`
 // key keeps whatever the variant at the same index already had.
@@ -123,6 +186,7 @@ const normalizeWeight = (raw, index, { existing, files, allowed }) => {
 
     return {
         weight,
+        color: typeof raw.color === 'string' ? raw.color.trim() : '',
         stock: toNumber(raw.stock, `Variant ${n}: stock`, { fallback: 0 }),
         price: toNumber(raw.price, `Variant ${n}: price`, { min: 0 }),
         discountPercent: toNumber(raw.discountPercent, `Variant ${n}: discount`, { fallback: 0, min: 0, max: 100 }),
@@ -237,8 +301,11 @@ export const createProductController = async (request, response) => {
             });
         }
 
-        const processedWeights = weightsArray.map((weightObj, index) => ({
+        const colors = normalizeColors(request.body?.colors);
+
+        const processedWeights = applyVariantColors(weightsArray.map((weightObj, index) => ({
             weight: weightObj.weight,
+            color: typeof weightObj.color === 'string' ? weightObj.color.trim() : '',
             stock: weightObj.stock,
             price: weightObj.price,
             discountPercent: weightObj.discountPercent || 0,
@@ -246,7 +313,7 @@ export const createProductController = async (request, response) => {
             sku: weightObj.sku || '',
             barcode: weightObj.barcode || '',
             images: uploadedUrls(files, `weight_images_${index}`).filter(Boolean)
-        }));
+        })), colors);
 
         let qaArray = [];
         try {
@@ -263,6 +330,7 @@ export const createProductController = async (request, response) => {
             lastName: lastName || "",
             category: categoryId,
             weights: processedWeights,
+            colors,
             description: description || "",
             qa: qaArray,
             showInEcommerce: showOnStorefront
@@ -444,6 +512,8 @@ export const updateProductDetails = async (request, response) => {
 
         if (body.qa !== undefined) update.qa = normalizeQa(body.qa);
 
+        if (body.colors !== undefined) update.colors = normalizeColors(body.colors);
+
         if (body.weights !== undefined) {
             const weightsInput = parseJsonField(body.weights, 'weights');
             if (!Array.isArray(weightsInput)) throw ApiError.badRequest('Invalid weights format');
@@ -457,6 +527,16 @@ export const updateProductDetails = async (request, response) => {
                 i,
                 nameSeed
             ));
+        }
+
+        // Variants and the colour list have to agree after this write, whichever
+        // of the two the request changed (an edit that sends only `colors` is
+        // checked against the variants already stored).
+        if (update.weights !== undefined || update.colors !== undefined) {
+            update.weights = applyVariantColors(
+                update.weights ?? existing.weights ?? [],
+                update.colors ?? existing.colors ?? []
+            );
         }
 
         if (body.gallery !== undefined) {

@@ -11,6 +11,7 @@ import { authFetch } from "@/services/api";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import ImageUpload from "@/components/admin/ImageUpload";
 import { revalidateTags } from "@/lib/revalidate";
+import { variantLabel } from "@/lib/productVariants";
 
 // Mirrors the slug rule enforced server-side (validations/landingPage.schema.js).
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -284,7 +285,7 @@ function OrderFormFields({ data, onChange }) {
                     >
                         {weights.length === 0 && <option value={0}>{data.productId ? "Loading variants…" : "Pick a product first"}</option>}
                         {weights.map((w, i) => (
-                            <option key={i} value={i}>{w.weight} {w.price != null ? `— ${w.price}` : ""}</option>
+                            <option key={i} value={i}>{variantLabel(w)} {w.price != null ? `— ${w.price}` : ""}</option>
                         ))}
                     </select>
                 </div>

@@ -8,6 +8,14 @@ import { addToCart } from "@/utils/cart.js";
 import { trackAddToCart } from "@/lib/tracking";
 import { useCatalogConfig } from "@/hooks/useSiteSettings";
 import { getProductImages, getProductCover } from "@/lib/productImages";
+import {
+    getColorOptions,
+    indexForColor,
+    firstAvailableIndex,
+    variantInStock,
+    variantLabel,
+    maxQuantity,
+} from "@/lib/productVariants";
 
 // A centered modal that fetches full product detail on open, so a shopper
 // can compare a size, see the price, and add to cart without ever leaving
@@ -30,7 +38,8 @@ export default function QuickViewModal() {
             return undefined;
         }
         setLoading(true);
-        setSelectedWeight(0);
+        // Start on a colour/size that can be bought, not a sold-out first row.
+        setSelectedWeight(firstAvailableIndex(summary));
         setQuantity(1);
         setAdded(false);
         let cancelled = false;
@@ -48,7 +57,7 @@ export default function QuickViewModal() {
         return () => {
             cancelled = true;
         };
-    }, [summary?._id]);
+    }, [summary]);
 
     useEffect(() => {
         if (!summary) return undefined;
@@ -73,12 +82,16 @@ export default function QuickViewModal() {
         : undefined;
     const hasDiscount = currentWeight?.discountPercent > 0;
     const unitPrice = currentWeight ? currentWeight.price - (currentWeight.price * (currentWeight.discountPercent || 0) / 100) : 0;
+    const inStock = variantInStock(currentWeight);
+    const colorOptions = getColorOptions(product);
+    const selectedColor = colorOptions.find((o) => o.indexes.includes(selectedWeight)) || null;
+    const sizeIndexes = selectedColor ? selectedColor.indexes : (product.weights || []).map((_, i) => i);
 
     const handleAdd = async () => {
         if (!currentWeight) return;
         setAdding(true);
         try {
-            await addToCart(product._id, quantity, currentWeight.weight, selectedWeight, currentWeight.price, currentWeight.discountPercent || 0, product.firstName, image || getProductCover(product));
+            await addToCart(product._id, quantity, variantLabel(currentWeight), selectedWeight, currentWeight.price, currentWeight.discountPercent || 0, product.firstName, image || getProductCover(product));
             trackAddToCart({ productId: product._id, name: product.firstName, price: unitPrice, quantity, currency: undefined });
             window.dispatchEvent(new Event("cart-updated"));
             setAdded(true);
@@ -144,12 +157,56 @@ export default function QuickViewModal() {
                             <div className="mt-4 h-4 w-32 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
                         )}
 
-                        {product.weights?.length > 0 && (
+                        {colorOptions.length > 0 && (
+                            <div className="mt-4">
+                                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                    Color: <span className="font-medium text-gray-500 dark:text-gray-400">{selectedColor?.name}</span>
+                                </p>
+                                <div role="radiogroup" aria-label="Color" className="flex flex-wrap gap-2">
+                                    {colorOptions.map((option) => {
+                                        const isSelected = selectedColor?.name === option.name;
+                                        const swatch = option.hex || null;
+                                        return (
+                                            <button
+                                                key={option.name}
+                                                type="button"
+                                                role="radio"
+                                                aria-checked={isSelected}
+                                                aria-label={option.inStock ? option.name : `${option.name} (out of stock)`}
+                                                title={option.inStock ? option.name : `${option.name} — out of stock`}
+                                                onClick={() => { setSelectedWeight(indexForColor(product, option.name, selectedWeight)); setQuantity(1); }}
+                                                className={`relative flex items-center justify-center overflow-hidden transition-all active:scale-95 ${
+                                                    swatch ? "w-8 h-8 rounded-full" : "px-3 h-8 rounded-lg text-xs font-medium"
+                                                } ${option.inStock ? "" : "opacity-50"} ${
+                                                    isSelected
+                                                        ? "ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-900"
+                                                        : "ring-1 ring-gray-300 dark:ring-gray-600 hover:ring-gray-400"
+                                                }`}
+                                                style={{
+                                                    ...(swatch ? { background: swatch } : {}),
+                                                    ...(isSelected ? { "--tw-ring-color": "var(--theme-primary)" } : {}),
+                                                }}
+                                            >
+                                                {!swatch && <span className="text-gray-700 dark:text-gray-200">{option.name}</span>}
+                                                {!option.inStock && (
+                                                    <span aria-hidden="true" className="absolute inset-0 pointer-events-none">
+                                                        <span className="absolute left-1/2 top-1/2 h-[2px] w-[140%] -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-gray-500/80" />
+                                                    </span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {sizeIndexes.length > 0 && (
                             <div className="mt-4">
                                 <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Size / Weight</p>
                                 <div className="flex flex-wrap gap-2">
-                                    {product.weights.map((w, i) => {
-                                        const out = !w.stock || w.stock < 1;
+                                    {sizeIndexes.map((i) => {
+                                        const w = product.weights[i];
+                                        const out = !variantInStock(w);
                                         const sel = selectedWeight === i;
                                         return (
                                             <button
@@ -178,17 +235,17 @@ export default function QuickViewModal() {
                             <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
                                 <button onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="w-8 h-8 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">−</button>
                                 <span className="w-8 text-center text-sm font-bold text-gray-900 dark:text-gray-100">{quantity}</span>
-                                <button onClick={() => setQuantity((q) => Math.min(currentWeight?.stock || 10, q + 1))} className="w-8 h-8 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">+</button>
+                                <button onClick={() => setQuantity((q) => Math.min(maxQuantity(currentWeight), q + 1))} className="w-8 h-8 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">+</button>
                             </div>
                         </div>
 
                         <button
                             onClick={handleAdd}
-                            disabled={adding || !currentWeight?.stock}
+                            disabled={adding || !inStock}
                             className="mt-5 w-full text-white font-semibold py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                             style={{ background: added ? "#128A44" : "var(--theme-primary)" }}
                         >
-                            {adding ? "Adding..." : added ? <><FiCheck className="w-4 h-4" /> Added to cart</> : <><FiShoppingCart className="w-4 h-4" /> {currentWeight?.stock > 0 ? "Add to Cart" : "Out of Stock"}</>}
+                            {adding ? "Adding..." : added ? <><FiCheck className="w-4 h-4" /> Added to cart</> : <><FiShoppingCart className="w-4 h-4" /> {inStock ? "Add to Cart" : "Out of Stock"}</>}
                         </button>
 
                         <Link

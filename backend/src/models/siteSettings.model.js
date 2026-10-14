@@ -17,6 +17,7 @@ export const CATALOG_DEFAULTS = Object.freeze({
     productImageMode: 'variant',
     autoSlide: true,
     autoSlideSeconds: 4,
+    showStock: true,
 });
 
 const siteSettingsSchema = new mongoose.Schema(
@@ -212,6 +213,10 @@ const siteSettingsSchema = new mongoose.Schema(
             productImageMode: { type: String, enum: ['variant', 'product'], default: CATALOG_DEFAULTS.productImageMode },
             autoSlide: { type: Boolean, default: CATALOG_DEFAULTS.autoSlide },
             autoSlideSeconds: { type: Number, default: CATALOG_DEFAULTS.autoSlideSeconds, min: 2, max: 15 },
+            // Whether shoppers may see how many units are left. Off means the
+            // public product API stops sending stock counts at all (see
+            // lib/publicProduct.js), not just that the page hides them.
+            showStock: { type: Boolean, default: CATALOG_DEFAULTS.showStock },
         },
 
         maintenanceMode: { type: Boolean, default: false },

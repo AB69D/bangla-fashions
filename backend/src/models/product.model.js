@@ -5,6 +5,14 @@ const weightSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    // Which of the product's `colors` this variant is in. A variant is one
+    // size in one colour, so stock, price, SKU and barcode are all per colour.
+    // Empty on products that have no colours (every legacy product).
+    color: {
+        type: String,
+        default: '',
+        trim: true
+    },
     stock: {
         type: Number,
         default: 0,
@@ -43,6 +51,29 @@ const weightSchema = new mongoose.Schema({
         default: []
     }
 }, { _id: false });
+
+const colorSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    hex: {
+        type: String,
+        default: '',
+        trim: true
+    }
+}, { _id: false });
+
+// How a variant reads in carts, orders, receipts, the POS and the stock ledger:
+// "M" for a plain size, "M / Red" for a coloured one. Those places store the
+// label as a snapshot string, so putting the colour in it shows the colour
+// everywhere without each of them learning about a second field.
+export const variantLabel = (w) => {
+    const size = String(w?.weight ?? '').trim();
+    const color = String(w?.color ?? '').trim();
+    return color ? `${size} / ${color}` : size;
+};
 
 const qaSchema = new mongoose.Schema({
     question: {
@@ -106,6 +137,13 @@ const productSchema = new mongoose.Schema({
         required: true
     },
     weights: [weightSchema],
+    // Colours this product is sold in, chosen by the admin when creating it.
+    // Each variant in `weights` points at one of these by name; `hex` is only
+    // the swatch the storefront paints. Empty for products without colours.
+    colors: {
+        type: [colorSchema],
+        default: []
+    },
     description: {
         type: String,
         default: ""
@@ -164,7 +202,8 @@ const ensureVariantCodes = (w, index = 0, firstName = '') => {
     }
     if (!w.sku || !String(w.sku).trim()) {
         const wt = String(w.weight || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-        w.sku = `${slug3(firstName)}-${wt || index + 1}-${String(w.barcode).slice(-4)}`;
+        const col = String(w.color || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+        w.sku = `${slug3(firstName)}-${wt || index + 1}${col ? `-${col}` : ''}-${String(w.barcode).slice(-4)}`;
     }
     return w;
 };

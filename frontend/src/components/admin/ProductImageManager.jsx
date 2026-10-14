@@ -20,7 +20,7 @@ import { normalizeCatalogConfig } from "@/lib/catalogConfig";
 
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // mirrors the backend multer fileSize
 export const MAX_FILES_PER_REQUEST = 30; // mirrors productUpload `files` limit
-export const MAX_IMAGE_SIZES = 10; // backend only accepts weight_images_0..9
+export const MAX_IMAGE_SIZES = 30; // backend accepts weight_images_0..29 (MAX_VARIANT_IMAGE_FIELDS in product.route.js)
 
 let seq = 0;
 const nextId = () => `img-${++seq}`;

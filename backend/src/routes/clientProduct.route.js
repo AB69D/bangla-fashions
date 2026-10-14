@@ -1,7 +1,15 @@
 import { Router } from 'express';
 import ProductModel from '../models/product.model.js';
+import { isStockVisible, toPublicProduct } from '../lib/publicProduct.js';
 
 const clientProductRouter = Router();
+
+// Fields of a variant that must never reach the public storefront: costPrice is
+// the shop's margin, and sku/barcode are internal stock-keeping codes the
+// storefront never reads (only the POS does, through /api/admin/pos). Applied
+// as an exclusion so every other field keeps flowing; a new private field on
+// the product model has to be added here. /by-ids below uses an allow-list.
+const PUBLIC_PRODUCT_HIDDEN = '-weights.costPrice -weights.sku -weights.barcode';
 
 clientProductRouter.get('/products', async (req, res) => {
     try {
@@ -27,9 +35,10 @@ clientProductRouter.get('/products', async (req, res) => {
 
         const skip = (pageNum - 1) * limitNum;
 
-        const [data, totalCount] = await Promise.all([
-            ProductModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limitNum).populate('category'),
-            ProductModel.countDocuments(query)
+        const [data, totalCount, showStock] = await Promise.all([
+            ProductModel.find(query).select(PUBLIC_PRODUCT_HIDDEN).sort({ createdAt: -1 }).skip(skip).limit(limitNum).populate('category'),
+            ProductModel.countDocuments(query),
+            isStockVisible()
         ]);
 
         return res.json({
@@ -38,7 +47,7 @@ clientProductRouter.get('/products', async (req, res) => {
             success: true,
             totalCount: totalCount,
             totalNoPage: Math.ceil(totalCount / limitNum),
-            data: data
+            data: data.map((p) => toPublicProduct(p, showStock))
         });
     } catch (error) {
         return res.status(500).json({
@@ -63,7 +72,7 @@ clientProductRouter.get('/product/:id', async (req, res) => {
         const product = await ProductModel.findOne({
             _id: id,
             showInEcommerce: { $ne: false }
-        }).populate('category');
+        }).select(PUBLIC_PRODUCT_HIDDEN).populate('category');
 
         if (!product) {
             return res.status(404).json({
@@ -75,7 +84,7 @@ clientProductRouter.get('/product/:id', async (req, res) => {
 
         return res.json({
             message: "Product details",
-            data: product,
+            data: toPublicProduct(product, await isStockVisible()),
             error: false,
             success: true
         });
@@ -128,16 +137,17 @@ clientProductRouter.post('/by-ids', async (req, res) => {
             _id: { $in: wanted },
             showInEcommerce: { $ne: false }
         })
-            .select('firstName lastName cover_image gallery category weights.weight weights.price weights.discountPercent weights.stock weights.images')
+            .select('firstName lastName cover_image gallery category colors weights.weight weights.color weights.price weights.discountPercent weights.stock weights.images')
             .lean();
 
         // $in does not preserve order; callers expect the order they sent.
         const position = new Map(wanted.map((id, i) => [id, i]));
         products.sort((a, b) => position.get(String(a._id)) - position.get(String(b._id)));
 
+        const showStock = await isStockVisible();
         return res.json({
             message: "Product data",
-            data: products,
+            data: products.map((p) => toPublicProduct(p, showStock)),
             error: false,
             success: true
         });
@@ -174,12 +184,13 @@ clientProductRouter.get('/top-selling', async (req, res) => {
         const products = await ProductModel.find({
             _id: { $in: productIds },
             showInEcommerce: { $ne: false }
-        }).populate('category');
+        }).select(PUBLIC_PRODUCT_HIDDEN).populate('category');
 
+        const showStock = await isStockVisible();
         const productsWithSales = products.map(product => {
             const salesData = topSelling.find(item => item._id === product._id.toString());
             return {
-                ...product.toObject(),
+                ...toPublicProduct(product, showStock),
                 totalSold: salesData ? salesData.totalSold : 0
             };
         });

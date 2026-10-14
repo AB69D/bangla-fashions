@@ -177,6 +177,7 @@ const catalog = z
         productImageMode: z.enum(['variant', 'product']),
         autoSlide: z.boolean(),
         autoSlideSeconds: z.coerce.number().int().min(2).max(15),
+        showStock: z.boolean(),
     })
     .partial();
 
@@ -187,7 +188,9 @@ export const updateSiteSettingsSchema = z.object({
     logoUrl: imageUrl.optional(),
     faviconUrl: imageUrl.optional(),
     contactEmail: z.string().email().or(z.literal('')).optional(),
-    contactPhone: z.string().max(50).optional(),
+    // Holds several numbers, comma separated; the stored default is three of
+    // them (53 characters), so a 50 limit made every settings save fail.
+    contactPhone: z.string().max(200).optional(),
     contactAddress: z.string().max(500).optional(),
     socialLinks: z.array(socialLink).optional(),
     currencyCode: z.string().length(3).optional(),

@@ -20,6 +20,20 @@ const firstVariantImages = (product) => {
     return [];
 };
 
+// Photos of the picked variant's colour, taken from whichever variant of that
+// colour has any. Photos are usually uploaded once per colour (on one of its
+// sizes), so picking another size of the same colour must keep showing them.
+const sameColorImages = (product, weightIndex) => {
+    const color = String(product?.weights?.[weightIndex]?.color ?? "").trim().toLowerCase();
+    if (!color) return [];
+    for (const w of product.weights) {
+        if (String(w?.color ?? "").trim().toLowerCase() !== color) continue;
+        const imgs = clean(w?.images);
+        if (imgs.length) return imgs;
+    }
+    return [];
+};
+
 export function getProductImages(product, { mode, weightIndex = 0 } = {}) {
     if (!product) return [];
 
@@ -36,6 +50,8 @@ export function getProductImages(product, { mode, weightIndex = 0 } = {}) {
     // Anything that is not exactly "product" behaves like today's storefront.
     const own = clean(product.weights?.[weightIndex]?.images);
     if (own.length) return own;
+    const sameColor = sameColorImages(product, weightIndex);
+    if (sameColor.length) return sameColor;
     // Gallery-mode product viewed in per-size mode: its gallery beats a lone cover.
     if (gallery.length) return gallery;
     if (cover.length) return cover;

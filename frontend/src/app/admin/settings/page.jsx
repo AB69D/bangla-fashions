@@ -22,7 +22,7 @@ const TABS = [
     { id: "contact", label: "Contact & Social", icon: <FiPhone className="w-4 h-4" /> },
     { id: "seo", label: "SEO & Currency", icon: <FiSearch className="w-4 h-4" /> },
     { id: "features", label: "Features", icon: <FiToggleRight className="w-4 h-4" /> },
-    { id: "catalog", label: "Product images", icon: <FiImage className="w-4 h-4" /> },
+    { id: "catalog", label: "Products", icon: <FiImage className="w-4 h-4" /> },
     { id: "pos", label: "POS & Receipt", icon: <FiPrinter className="w-4 h-4" /> },
     { id: "barcode", label: "Barcode & Labels", icon: <FiTag className="w-4 h-4" /> },
     { id: "integrations", label: "Analytics & WhatsApp", icon: <FiActivity className="w-4 h-4" /> },
@@ -691,6 +691,16 @@ export default function SettingsPage() {
 
                 {tab === "catalog" && (
                     <>
+                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-3">
+                            <h3 className="text-sm font-semibold text-gray-700">Stock visibility</h3>
+                            <Toggle
+                                label="Show stock to customers"
+                                hint="On: the product page shows “In stock” and “Only N left”. Off: customers never see unit counts, and the numbers are not even sent to their browser. A sold-out size or color still shows as Out of stock."
+                                checked={catalogCfg.showStock}
+                                onChange={(v) => setCatalog({ showStock: v })}
+                            />
+                        </div>
+
                         <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-3">
                             <h3 className="text-sm font-semibold text-gray-700">How product photos work</h3>
                             <p className="text-xs text-gray-500 -mt-1">

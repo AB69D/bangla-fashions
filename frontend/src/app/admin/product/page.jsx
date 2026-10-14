@@ -1,7 +1,7 @@
 "use client";
 import { authFetch } from "@/services/api";
 import React, { useState, useEffect } from "react";
-import { FiUploadCloud, FiPlus, FiTrash2, FiChevronDown, FiChevronUp, FiLock } from "react-icons/fi";
+import { FiUploadCloud, FiPlus, FiTrash2, FiChevronDown, FiChevronUp, FiLock, FiCopy } from "react-icons/fi";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import ProductImageManager, {
     appendImagesToFormData,
@@ -10,11 +10,13 @@ import ProductImageManager, {
     MAX_FILES_PER_REQUEST,
     MAX_IMAGE_SIZES,
 } from "@/components/admin/ProductImageManager";
+import ProductColorsEditor, { reconcileVariantColors, findDuplicateVariant } from "@/components/admin/ProductColorsEditor";
+import { variantLabel } from "@/lib/productVariants";
 
 // Stable per-row key so a size's image manager (and its blob: previews) stays
 // attached to the right row when an earlier size is removed.
 let weightKeySeq = 0;
-const newWeight = () => ({ _key: ++weightKeySeq, weight: "", stock: "", price: "", costPrice: "", sku: "", barcode: "", images: [] });
+const newWeight = () => ({ _key: ++weightKeySeq, weight: "", color: "", stock: "", price: "", costPrice: "", sku: "", barcode: "", images: [] });
 
 // Mirror of the backend GS1 "internal use" (prefix 2) barcode so the admin can
 // preview/lock a code in the form. The server fills any blank code on save.
@@ -33,6 +35,8 @@ export default function CreateProductPage() {
     const [message, setMessage] = useState("");
     const [categories, setCategories] = useState([]);
     const [weights, setWeights] = useState(() => [newWeight()]);
+    // Colors the product is sold in; every size row then picks one of them.
+    const [colors, setColors] = useState([]);
     // Variant mode: one optional cover + photos per size. Product mode: a single gallery.
     const [coverItems, setCoverItems] = useState([]);
     const [galleryItems, setGalleryItems] = useState([]);
@@ -65,6 +69,23 @@ export default function CreateProductPage() {
 
     const addWeight = () => {
         setWeights((prev) => [...prev, newWeight()]);
+    };
+
+    // Changing the color list also clears any size row that pointed at a color
+    // that just left it, so a stale choice can't reach the server.
+    const handleColorsChange = (next) => {
+        setColors(next);
+        setWeights((prev) => reconcileVariantColors(prev, next));
+    };
+
+    // Same size and price, ready for the next color: stock, codes and photos are
+    // per variant so they start blank.
+    const duplicateWeight = (index) => {
+        setWeights((prev) => {
+            const src = prev[index];
+            const copy = { ...newWeight(), weight: src.weight, price: src.price, costPrice: src.costPrice };
+            return [...prev.slice(0, index + 1), copy, ...prev.slice(index + 1)];
+        });
     };
 
     const removeWeight = (index) => {
@@ -105,8 +126,20 @@ export default function CreateProductPage() {
             return;
         }
         if (!productMode && weights.some((w, i) => i >= MAX_IMAGE_SIZES && countNewFiles(w.images) > 0)) {
-            showMessage(`Error: photos can only be attached to the first ${MAX_IMAGE_SIZES} sizes.`);
+            showMessage(`Error: photos can only be attached to the first ${MAX_IMAGE_SIZES} size rows.`);
             return;
+        }
+        if (colors.length > 0) {
+            const missing = weights.findIndex((w) => !w.color);
+            if (missing !== -1) {
+                showMessage(`Error: choose a color for size row ${missing + 1}, or remove the colors above.`);
+                return;
+            }
+            const dup = findDuplicateVariant(weights);
+            if (dup) {
+                showMessage(`Error: ${dup} is listed twice. Each size needs one row per color.`);
+                return;
+            }
         }
 
         setLoading(true);
@@ -118,8 +151,10 @@ export default function CreateProductPage() {
         formData.append("firstName", form.firstName.value);
         formData.append("lastName", form.lastName.value);
         formData.append("category", form.category.value);
+        formData.append("colors", JSON.stringify(colors));
         formData.append("weights", JSON.stringify(weights.map(w => ({
             weight: w.weight,
+            color: w.color,
             stock: parseInt(w.stock) || 0,
             price: parseFloat(w.price) || 0,
             costPrice: parseFloat(w.costPrice) || 0,
@@ -152,6 +187,7 @@ export default function CreateProductPage() {
                 showMessage(`Success: ${data.message}`);
                 form.reset();
                 setWeights([newWeight()]);
+                setColors([]);
                 setCoverItems([]);
                 setGalleryItems([]);
                 setQaList([{ question: "", answer: "" }]);
@@ -277,9 +313,11 @@ export default function CreateProductPage() {
                     </label>
                 </div>
 
+                <ProductColorsEditor colors={colors} onChange={handleColorsChange} disabled={loading} />
+
                 <div className="border-t pt-4 sm:pt-5">
                     <div className="flex items-center justify-between mb-3 sm:mb-4">
-                        <h4 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-800">Product Sizes</h4>
+                        <h4 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-800">{colors.length > 0 ? "Sizes & Stock by Color" : "Product Sizes"}</h4>
                         <button 
                             type="button" 
                             onClick={addWeight}
@@ -292,18 +330,48 @@ export default function CreateProductPage() {
                     {weights.map((weight, index) => (
                         <div key={weight._key} className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-3 sm:mb-4 border">
                             <div className="flex items-center justify-between mb-2 sm:mb-3">
-                                <span className="text-xs sm:text-sm font-medium text-gray-600">Size {index + 1}</span>
-                                {weights.length > 1 && (
-                                    <button 
-                                        type="button" 
-                                        onClick={() => removeWeight(index)}
-                                        className="text-red-500 hover:text-red-600"
-                                    >
-                                        <FiTrash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                                    </button>
-                                )}
+                                <span className="text-xs sm:text-sm font-medium text-gray-600">
+                                    Size {index + 1}{weight.color ? ` · ${weight.color}` : ""}
+                                </span>
+                                <div className="flex items-center gap-3">
+                                    {colors.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => duplicateWeight(index)}
+                                            title="Copy this size for another color"
+                                            className="flex items-center gap-1 text-[11px] sm:text-xs text-emerald-600 hover:text-emerald-700"
+                                        >
+                                            <FiCopy className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Copy for another color
+                                        </button>
+                                    )}
+                                    {weights.length > 1 && (
+                                        <button 
+                                            type="button" 
+                                            onClick={() => removeWeight(index)}
+                                            className="text-red-500 hover:text-red-600"
+                                        >
+                                            <FiTrash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-3 lg:gap-4 mb-2 sm:mb-3">
+                            <div className={`grid grid-cols-1 ${colors.length > 0 ? "md:grid-cols-4" : "md:grid-cols-3"} gap-2 sm:gap-3 lg:gap-4 mb-2 sm:mb-3`}>
+                                {colors.length > 0 && (
+                                    <div>
+                                        <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Color</label>
+                                        <select
+                                            value={weight.color}
+                                            onChange={(e) => updateWeight(index, "color", e.target.value)}
+                                            required
+                                            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-700 text-xs sm:text-sm bg-white"
+                                        >
+                                            <option value="">Select color</option>
+                                            {colors.map((c) => (
+                                                <option key={c.name} value={c.name}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Size</label>
                                     <input 
@@ -384,7 +452,7 @@ export default function CreateProductPage() {
                             </div>
                             {catalog.ready && !productMode && (
                                 <ProductImageManager
-                                    label={`Images for ${weight.weight || "this size"}`}
+                                    label={`Images for ${variantLabel(weight) || "this size"}`}
                                     items={weight.images}
                                     onChange={(next) => updateWeight(index, "images", next)}
                                     max={10}

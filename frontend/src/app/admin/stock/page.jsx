@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { FiSearch, FiPlus, FiMinus, FiAlertCircle, FiTrendingUp, FiPackage } from "react-icons/fi";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import { useCurrency } from "@/context/CurrencyContext.jsx";
+import { variantLabel } from "@/lib/productVariants";
 
 export default function StockManagementPage() {
     const { can } = useAdminAuth();
@@ -183,7 +184,7 @@ export default function StockManagementPage() {
                                     {product.weights.map((weight, index) => (
                                         <div key={index} className="bg-white border border-gray-100 rounded-lg p-3">
                                             <div className="flex items-center justify-between mb-2">
-                                                <span className="font-medium text-gray-700">{weight.weight}</span>
+                                                <span className="font-medium text-gray-700">{variantLabel(weight)}</span>
                                                 <span className="text-emerald-600 font-semibold">{symbol}{weight.price}</span>
                                             </div>
                                             <div className="flex items-center justify-between">
@@ -220,7 +221,7 @@ export default function StockManagementPage() {
                             <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                                 <p className="font-medium text-gray-800">{adjustModal.product.productName}</p>
                                 <p className="text-sm text-gray-500">
-                                    Current Weight: {adjustModal.product.weights[adjustModal.weightIndex]?.weight} | 
+                                    Current Variant: {variantLabel(adjustModal.product.weights[adjustModal.weightIndex])} | 
                                     Current Stock: {adjustModal.product.weights[adjustModal.weightIndex]?.stock}
                                 </p>
                             </div>

@@ -7,7 +7,8 @@
 // server-side from the database on every turn — the client value is never
 // trusted.
 
-import ProductModel from '../models/product.model.js';
+import ProductModel, { variantLabel } from '../models/product.model.js';
+import { isStockVisible } from '../lib/publicProduct.js';
 import CategoryModel from '../models/category.model.js';
 import OrderModel from '../models/order.model.js';
 import { SiteSettings } from '../models/siteSettings.model.js';
@@ -112,11 +113,12 @@ async function findProducts(query) {
     return ProductModel.find(filter).sort({ createdAt: -1 }).limit(SEARCH_LIMIT).lean();
 }
 
-function buildCard(p, symbol) {
+function buildCard(p, symbol, showStock) {
     const variants = (p.weights || []).map((w, i) => ({
         weightIndex: i,
-        weight: w.weight,
-        stock: Number(w.stock) || 0,
+        weight: variantLabel(w),
+        // The count only goes to the shopper while the store shows stock.
+        ...(showStock ? { stock: Number(w.stock) || 0 } : {}),
         price: unitPrice(w),
         priceLabel: money(unitPrice(w), symbol),
         discountPercent: Number(w.discountPercent) || 0,
@@ -136,6 +138,7 @@ function buildCard(p, symbol) {
 
 // Resolve the cart against live DB data: names, prices, stock, totals.
 async function resolveCart(cart, symbol) {
+    const showStock = await isStockVisible();
     if (!cart.length) return { lines: [], subtotal: 0, subtotalLabel: money(0, symbol), count: 0, issues: [] };
     const ids = [...new Set(cart.map((c) => c.productId))];
     const products = await ProductModel.find({ _id: { $in: ids } }).lean();
@@ -156,9 +159,13 @@ async function resolveCart(cart, symbol) {
         const price = unitPrice(w);
         const lineTotal = round2(price * qty);
         if (stock <= 0) {
-            issues.push(`${productName(p)} (${w.weight}) is out of stock.`);
+            issues.push(`${productName(p)} (${variantLabel(w)}) is out of stock.`);
         } else if (item.quantity > stock) {
-            issues.push(`Only ${stock} of ${productName(p)} (${w.weight}) left — adjusted.`);
+            issues.push(
+                showStock
+                    ? `Only ${stock} of ${productName(p)} (${variantLabel(w)}) left — adjusted.`
+                    : `${productName(p)} (${variantLabel(w)}) is not available in that quantity — adjusted.`
+            );
         }
         if (qty <= 0) continue;
         subtotal += lineTotal;
@@ -167,13 +174,13 @@ async function resolveCart(cart, symbol) {
             weightIndex: item.weightIndex,
             quantity: qty,
             name: productName(p),
-            weight: w.weight,
+            weight: variantLabel(w),
             image: variantImage(p, item.weightIndex),
             unitPrice: price,
             unitPriceLabel: money(price, symbol),
             lineTotal,
             lineTotalLabel: money(lineTotal, symbol),
-            stock,
+            ...(showStock ? { stock } : {}),
         });
     }
     return {
@@ -239,7 +246,8 @@ async function showSearch(query, ctx, symbol) {
             { quickReplies: [{ label: '🛍️ Browse all', action: { type: 'browse' } }] },
         );
     }
-    const cards = products.map((p) => buildCard(p, symbol));
+    const showStock = await isStockVisible();
+    const cards = products.map((p) => buildCard(p, symbol, showStock));
     const head = query
         ? `Here's what I found for "${query}":`
         : 'Here are some of our products:';
@@ -262,7 +270,8 @@ async function showCategoryProducts(categoryId, ctx, symbol) {
             quickReplies: [{ label: '🛍️ Browse', action: { type: 'browse' } }],
         });
     }
-    const cards = products.map((p) => buildCard(p, symbol));
+    const showStock = await isStockVisible();
+    const cards = products.map((p) => buildCard(p, symbol, showStock));
     return respond('Tap **Add** on any item to add it to your order:', ctx, symbol, { cards });
 }
 
@@ -276,7 +285,7 @@ async function addToCart(action, ctx, symbol) {
     const w = p?.weights?.[weightIndex];
     if (!p || !w) return respond('That product is no longer available.', ctx, symbol);
     if ((Number(w.stock) || 0) <= 0) {
-        return respond(`Sorry, ${productName(p)} (${w.weight}) is out of stock right now.`, ctx, symbol);
+        return respond(`Sorry, ${productName(p)} (${variantLabel(w)}) is out of stock right now.`, ctx, symbol);
     }
 
     const existing = ctx.cart.find((c) => c.productId === productId && c.weightIndex === weightIndex);
@@ -286,7 +295,7 @@ async function addToCart(action, ctx, symbol) {
 
     const snap = await resolveCart(ctx.cart, symbol);
     return respond(
-        `Added **${productName(p)} (${w.weight})** to your order. Your cart total is **${money(snap.subtotal, symbol)}**.`,
+        `Added **${productName(p)} (${variantLabel(w)})** to your order. Your cart total is **${money(snap.subtotal, symbol)}**.`,
         ctx,
         symbol,
         { cart: snap, quickReplies: [

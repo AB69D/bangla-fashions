@@ -29,6 +29,15 @@ import { recordView, removeView } from "@/services/recentlyViewed.js";
 import { useWhatsApp } from "@/hooks/useWhatsApp";
 import { useCatalogConfig } from "@/hooks/useSiteSettings";
 import { getProductImages, getProductCover } from "@/lib/productImages";
+import {
+    getColorOptions,
+    indexForColor,
+    firstAvailableIndex,
+    variantInStock,
+    variantStockCount,
+    variantLabel,
+    maxQuantity,
+} from "@/lib/productVariants";
 import { splitPhones, telHref } from "@/lib/phone";
 
 const MINI_TRUST = [
@@ -69,6 +78,8 @@ export default function ProductClient({ productId }) {
 
                 if (data.success) {
                     setProduct(data.data);
+                    // Open on a colour/size that is in stock rather than a sold-out first row.
+                    setSelectedWeight(firstAvailableIndex(data.data));
                     if (productRef.current) {
                         productRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
@@ -130,6 +141,11 @@ export default function ProductClient({ productId }) {
         return () => io.disconnect();
     }, [product]);
 
+    // The photo the cart line should show: the picked variant's own (so a red
+    // dress sits in the cart as the red one), else the product cover.
+    const cartImage = () =>
+        getProductImages(product, { mode: catalog.productImageMode, weightIndex: selectedWeight })[0] || getProductCover(product);
+
     const handleAddToCart = async () => {
         if (!product || !product.weights[selectedWeight]) return;
 
@@ -153,9 +169,9 @@ export default function ProductClient({ productId }) {
                 body: JSON.stringify({
                     productId: product._id,
                     productName: product.firstName,
-                    productImage: getProductCover(product),
+                    productImage: cartImage(),
                     quantity: quantity,
-                    weight: product.weights[selectedWeight].weight,
+                    weight: variantLabel(product.weights[selectedWeight]),
                     weightIndex: selectedWeight,
                     price: product.weights[selectedWeight].price,
                     discountPercent: product.weights[selectedWeight].discountPercent || 0
@@ -184,8 +200,8 @@ export default function ProductClient({ productId }) {
         if (!product || !product.weights[selectedWeight]) return;
 
         const currentWeight = product.weights[selectedWeight];
-        if (!currentWeight?.stock || currentWeight.stock < 1) {
-            alert('This size is out of stock');
+        if (!variantInStock(currentWeight)) {
+            alert('This option is out of stock');
             return;
         }
 
@@ -209,9 +225,9 @@ export default function ProductClient({ productId }) {
                 body: JSON.stringify({
                     productId: product._id,
                     productName: product.firstName,
-                    productImage: getProductCover(product),
+                    productImage: cartImage(),
                     quantity: quantity,
-                    weight: currentWeight.weight,
+                    weight: variantLabel(currentWeight),
                     weightIndex: selectedWeight,
                     price: currentWeight.price,
                     discountPercent: currentWeight.discountPercent || 0
@@ -301,7 +317,19 @@ export default function ProductClient({ productId }) {
     const galleryImages = getProductImages(product, { mode: catalog.productImageMode, weightIndex: selectedWeight });
     const hasDiscount = currentWeight?.discountPercent > 0;
     const unitPrice = currentWeight ? currentWeight.price - (currentWeight.price * (currentWeight.discountPercent || 0) / 100) : 0;
-    const lowStock = currentWeight?.stock > 0 && currentWeight.stock <= 5;
+    const inStock = variantInStock(currentWeight);
+    // The count is only ever shown when the store allows it. The API stops
+    // sending it when it doesn't; checking the setting too keeps a stale page honest.
+    const showStock = catalog.ready && catalog.showStock;
+    const stockCount = variantStockCount(currentWeight);
+    const lowStock = showStock && inStock && stockCount !== null && stockCount <= 5;
+    // Colours: swatches pick the colour, and the size buttons then list only
+    // that colour's sizes. A product without colours skips all of this.
+    const colorOptions = getColorOptions(product);
+    const selectedColor = colorOptions.find((o) => o.indexes.includes(selectedWeight)) || null;
+    const sizeIndexes = selectedColor
+        ? selectedColor.indexes
+        : (product.weights || []).map((_, i) => i);
     // contactPhone can hold several numbers; the CTA rings the first one. "" when
     // the admin has left it blank, in which case the button is not rendered.
     const callPhone = splitPhones(wa.contactPhone)[0] || "";
@@ -371,34 +399,85 @@ export default function ProductClient({ productId }) {
                     </div>
 
                     <div className="mt-2">
-                        {currentWeight?.stock > 0 ? (
+                        {!inStock ? (
+                            // Always shown: it is why the buy buttons are disabled.
+                            <p className="text-sm text-red-500">Out of stock</p>
+                        ) : showStock ? (
                             lowStock ? (
                                 <p className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-600">
                                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-soft-pulse" />
-                                    Only {currentWeight.stock} left — order soon
+                                    Only {stockCount} left — order soon
                                 </p>
                             ) : (
                                 <p className="inline-flex items-center gap-1.5 text-sm text-emerald-600">
                                     <FiCheck className="w-4 h-4" /> In stock
                                 </p>
                             )
-                        ) : (
-                            <p className="text-sm text-red-500">Out of stock</p>
-                        )}
+                        ) : null}
                     </div>
 
                     <SocialProof productId={product._id} className="mt-3" />
 
-                    {/* Variant selector */}
-                    {product.weights && product.weights.length > 0 && (
+                    {/* Colour selector: only on products the admin gave colours to. */}
+                    {colorOptions.length > 0 && (
+                        <div className="mt-6 sm:mt-7">
+                            <p className="block text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2.5">
+                                Color: <span className="font-medium text-gray-600 dark:text-gray-300">{selectedColor?.name}</span>
+                            </p>
+                            <div role="radiogroup" aria-label="Color" className="flex flex-wrap gap-2.5">
+                                {colorOptions.map((option) => {
+                                    const isSelected = selectedColor?.name === option.name;
+                                    const swatch = option.hex || null;
+                                    return (
+                                        <button
+                                            key={option.name}
+                                            type="button"
+                                            role="radio"
+                                            aria-checked={isSelected}
+                                            aria-label={option.inStock ? option.name : `${option.name} (out of stock)`}
+                                            title={option.inStock ? option.name : `${option.name} — out of stock`}
+                                            onClick={() => {
+                                                setSelectedWeight(indexForColor(product, option.name, selectedWeight));
+                                                setQuantity(1);
+                                            }}
+                                            className={`relative flex items-center justify-center overflow-hidden transition-all active:scale-95 ${
+                                                swatch ? "w-10 h-10 rounded-full" : "px-3.5 h-10 rounded-xl text-sm font-medium"
+                                            } ${option.inStock ? "" : "opacity-50"} ${
+                                                isSelected
+                                                    ? "ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-900"
+                                                    : "ring-1 ring-gray-300 dark:ring-gray-600 hover:ring-gray-400"
+                                            }`}
+                                            style={{
+                                                ...(swatch ? { background: swatch } : {}),
+                                                ...(isSelected ? { "--tw-ring-color": "var(--theme-primary)" } : {}),
+                                            }}
+                                        >
+                                            {!swatch && (
+                                                <span className="text-gray-700 dark:text-gray-200">{option.name}</span>
+                                            )}
+                                            {!option.inStock && (
+                                                <span aria-hidden="true" className="absolute inset-0 pointer-events-none">
+                                                    <span className="absolute left-1/2 top-1/2 h-[2px] w-[140%] -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-gray-500/80" />
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Size selector: with colours, just the picked colour's sizes. */}
+                    {sizeIndexes.length > 0 && (
                         <div className="mt-6 sm:mt-7">
                             <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2.5">
                                 Size / Weight
                             </label>
                             <div className="flex flex-wrap gap-2">
-                                {product.weights.map((weight, index) => {
+                                {sizeIndexes.map((index) => {
+                                    const weight = product.weights[index];
                                     const isSelected = selectedWeight === index;
-                                    const isOut = !weight.stock || weight.stock < 1;
+                                    const isOut = !variantInStock(weight);
                                     return (
                                         <button
                                             key={index}
@@ -439,7 +518,7 @@ export default function ProductClient({ productId }) {
                                 {quantity}
                             </span>
                             <button
-                                onClick={() => setQuantity(Math.min(currentWeight?.stock || 10, quantity + 1))}
+                                onClick={() => setQuantity(Math.min(maxQuantity(currentWeight), quantity + 1))}
                                 className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100 dark:active:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
                                 aria-label="Increase quantity"
                             >
@@ -453,15 +532,15 @@ export default function ProductClient({ productId }) {
                          <div className="flex gap-3">
                              <button
                                  onClick={added ? goToCart : handleAddToCart}
-                                 disabled={adding || !currentWeight?.stock}
+                                 disabled={adding || !inStock}
                                  className="flex-1 min-w-0 text-white font-semibold py-3.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
                                  style={{ background: added ? "#0E6E36" : "var(--theme-primary)" }}
                              >
-                                 {adding ? 'Adding...' : added ? <><FiCheck className="w-5 h-5" /> Added</> : <><FiShoppingCart className="w-4 h-4" /> {currentWeight?.stock > 0 ? 'Add to Cart' : 'Out of Stock'}</>}
+                                 {adding ? 'Adding...' : added ? <><FiCheck className="w-5 h-5" /> Added</> : <><FiShoppingCart className="w-4 h-4" /> {inStock ? 'Add to Cart' : 'Out of Stock'}</>}
                              </button>
                              <button
                                  onClick={handleCashOnDelivery}
-                                 disabled={adding || !currentWeight?.stock}
+                                 disabled={adding || !inStock}
                                  className="flex-1 min-w-0 font-semibold py-3.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] border-2"
                                  style={{ borderColor: "var(--theme-primary)", color: "var(--theme-primary)" }}
                              >
@@ -618,11 +697,11 @@ export default function ProductClient({ productId }) {
                     </div>
                     <button
                         onClick={added ? goToCart : handleAddToCart}
-                        disabled={adding || !currentWeight?.stock}
+                        disabled={adding || !inStock}
                         className="flex-1 text-white font-semibold py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm"
                         style={{ background: added ? "#0E6E36" : "var(--theme-primary)" }}
                     >
-                        {adding ? 'Adding...' : added ? <><FiCheck className="w-4 h-4" /> Added</> : <><FiShoppingCart className="w-4 h-4" /> {currentWeight?.stock > 0 ? 'Add to Cart' : 'Out of Stock'}</>}
+                        {adding ? 'Adding...' : added ? <><FiCheck className="w-4 h-4" /> Added</> : <><FiShoppingCart className="w-4 h-4" /> {inStock ? 'Add to Cart' : 'Out of Stock'}</>}
                     </button>
                 </div>
             </div>

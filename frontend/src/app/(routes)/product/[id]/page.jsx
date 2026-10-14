@@ -3,6 +3,7 @@ import ProductClient from "./ProductClient";
 import JsonLd from "@/components/JsonLd.jsx";
 import { SITE_URL, absoluteUrl } from "@/lib/seo.js";
 import { getProductCover } from "@/lib/productImages.js";
+import { variantInStock } from "@/lib/productVariants.js";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
 
@@ -103,7 +104,8 @@ export default async function ProductDetailsPage({ params }) {
         const image = absoluteUrl(getProductCover(product) || "/logo.png");
         const price = product.weights?.[0]?.price || 0;
         const currencyCode = settings?.currencyCode || "BDT";
-        const inStock = (product.weights || []).some((w) => Number(w?.stock) > 0);
+        // inStock, not stock: the public API drops the count while the store hides stock.
+        const inStock = (product.weights || []).some(variantInStock);
 
         productLd = {
             "@context": "https://schema.org",

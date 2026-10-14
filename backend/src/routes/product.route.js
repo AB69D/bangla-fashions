@@ -5,22 +5,18 @@ import { requirePermission } from '../middlewares/auth.middleware.js'
 
 const productRouter = Router()
 
+// A coloured product has one variant per size per colour, so the per-variant
+// photo fields have to reach further than the ten sizes they used to cover.
+// Keep MAX_IMAGE_SIZES in the admin ProductImageManager equal to this.
+const MAX_VARIANT_IMAGE_FIELDS = 30
+
 // Create and edit accept the same multipart fields: the cover photo, the
-// product-level gallery, and up to ten photos per size (weight_images_<index>).
+// product-level gallery, and up to ten photos per variant (weight_images_<index>).
 // Edit also accepts a plain JSON body — multer skips non-multipart requests.
 const productImageFields = productUpload.fields([
     { name: 'cover_image', maxCount: 1 },
     { name: 'gallery_images', maxCount: 10 },
-    { name: 'weight_images_0', maxCount: 10 },
-    { name: 'weight_images_1', maxCount: 10 },
-    { name: 'weight_images_2', maxCount: 10 },
-    { name: 'weight_images_3', maxCount: 10 },
-    { name: 'weight_images_4', maxCount: 10 },
-    { name: 'weight_images_5', maxCount: 10 },
-    { name: 'weight_images_6', maxCount: 10 },
-    { name: 'weight_images_7', maxCount: 10 },
-    { name: 'weight_images_8', maxCount: 10 },
-    { name: 'weight_images_9', maxCount: 10 }
+    ...Array.from({ length: MAX_VARIANT_IMAGE_FIELDS }, (_, i) => ({ name: `weight_images_${i}`, maxCount: 10 }))
 ])
 
 productRouter.post("/upload-product",
