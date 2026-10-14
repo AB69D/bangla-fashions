@@ -30,6 +30,17 @@ const getGuestId = (req) => {
     return req.headers['guest-id'] || null;
 };
 
+// Each order line carries a costPrice snapshot for the admin profit reports.
+// That is the shop's margin, so it is dropped from every order sent to the
+// storefront. Serialises exactly as res.json would, minus items[].costPrice.
+const toPublicOrder = (order) => {
+    const json = order.toJSON();
+    if (Array.isArray(json.items)) {
+        json.items = json.items.map(({ costPrice, ...line }) => line);
+    }
+    return json;
+};
+
 clientOrderRouter.post('/create', optionalCustomer, screenCheckout, async (req, res) => {
     try {
         const { 
@@ -111,7 +122,7 @@ clientOrderRouter.post('/create', optionalCustomer, screenCheckout, async (req, 
             if (existingByKey) {
                 return res.json({
                     message: "Order placed successfully",
-                    data: existingByKey,
+                    data: toPublicOrder(existingByKey),
                     error: false,
                     success: true
                 });
@@ -245,7 +256,7 @@ clientOrderRouter.post('/create', optionalCustomer, screenCheckout, async (req, 
                 if (existing) {
                     return res.json({
                         message: "Order placed successfully",
-                        data: existing,
+                        data: toPublicOrder(existing),
                         error: false,
                         success: true
                     });
@@ -301,7 +312,7 @@ clientOrderRouter.post('/create', optionalCustomer, screenCheckout, async (req, 
 
         res.json({
             message: "Order placed successfully",
-            data: order,
+            data: toPublicOrder(order),
             error: false,
             success: true
         });
@@ -332,7 +343,7 @@ clientOrderRouter.get('/list', async (req, res) => {
 
         res.json({
             message: "Order list",
-            data: orders,
+            data: orders.map(toPublicOrder),
             error: false,
             success: true
         });
@@ -365,7 +376,7 @@ clientOrderRouter.post('/track', async (req, res) => {
         }
 
         const order = await OrderModel.findOne({ orderId, customerPhone: phone });
-        const orders = order ? [order] : [];
+        const orders = order ? [toPublicOrder(order)] : [];
 
         res.json({
             message: orders.length ? "Orders found" : "No order matches that ID and phone number",
@@ -415,7 +426,7 @@ clientOrderRouter.get('/:orderId', optionalCustomer, async (req, res) => {
 
         res.json({
             message: "Order details",
-            data: order,
+            data: toPublicOrder(order),
             error: false,
             success: true
         });
