@@ -27,6 +27,9 @@ function RichText({ text }) {
 }
 
 function ProductCard({ card, onAdd, disabled }) {
+    // Colour is picked once per card and goes with whichever size is tapped.
+    const colors = Array.isArray(card.colors) ? card.colors : [];
+    const [color, setColor] = useState(colors[0]?.name || "");
     return (
         <div className="mt-2 rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
             <div className="flex gap-3 p-2.5">
@@ -50,13 +53,37 @@ function ProductCard({ card, onAdd, disabled }) {
                     )}
                 </div>
             </div>
+            {colors.length > 0 && (
+                <div className="px-2.5 pb-2">
+                    <p className="text-[11px] text-gray-500 mb-1">Color: <span className="font-medium text-gray-700">{color}</span></p>
+                    <div role="radiogroup" aria-label="Color" className="flex flex-wrap gap-1.5">
+                        {colors.map((c) => (
+                            <button
+                                key={c.name}
+                                type="button"
+                                role="radio"
+                                aria-checked={color === c.name}
+                                aria-label={c.name}
+                                title={c.name}
+                                onClick={() => setColor(c.name)}
+                                className={`flex items-center justify-center ${c.hex ? "w-6 h-6 rounded-full" : "px-2 h-6 rounded-md text-[11px]"} ${
+                                    color === c.name ? "ring-2 ring-emerald-600 ring-offset-1" : "ring-1 ring-gray-300"
+                                }`}
+                                style={c.hex ? { background: c.hex } : undefined}
+                            >
+                                {!c.hex && c.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
             <div className="flex flex-wrap gap-1.5 px-2.5 pb-2.5">
                 {card.variants.map((v) => (
                     <button
                         key={v.weightIndex}
                         type="button"
                         disabled={disabled || !v.inStock}
-                        onClick={() => onAdd(card, v)}
+                        onClick={() => onAdd(card, v, color)}
                         className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${
                             v.inStock
                                 ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
@@ -176,14 +203,14 @@ export default function OrderChatbot() {
         else if (qr.action.text) send({ message: qr.action.text, userText: qr.label });
     };
 
-    const onAdd = (card, variant) =>
+    const onAdd = (card, variant, color = "") =>
         send({
-            action: { type: "add", productId: card.id, weightIndex: variant.weightIndex },
-            userText: `Add ${card.name} (${variant.weight})`,
+            action: { type: "add", productId: card.id, weightIndex: variant.weightIndex, color },
+            userText: `Add ${card.name} (${color ? `${variant.weight} / ${color}` : variant.weight})`,
         });
 
     const cartLineAction = (type, line) =>
-        send({ action: { type, productId: line.productId, weightIndex: line.weightIndex } });
+        send({ action: { type, productId: line.productId, weightIndex: line.weightIndex, color: line.color || "" } });
 
     const whatsappLink = wa.enabled ? wa.chatUrl("Hi, I'd like to order a product.") : "";
 
@@ -318,7 +345,7 @@ export default function OrderChatbot() {
                             {cartOpen && (
                                 <div className="max-h-44 overflow-y-auto px-3 pb-2 space-y-1.5">
                                     {cart.lines.map((line) => (
-                                        <div key={`${line.productId}_${line.weightIndex}`} className="flex items-center gap-2 text-xs bg-gray-50 rounded-lg px-2 py-1.5">
+                                        <div key={`${line.productId}_${line.weightIndex}_${line.color || ""}`} className="flex items-center gap-2 text-xs bg-gray-50 rounded-lg px-2 py-1.5">
                                             <span className="flex-1 min-w-0 truncate text-gray-700">{line.name} · {line.weight}</span>
                                             <div className="flex items-center gap-1 shrink-0">
                                                 <button type="button" disabled={loading} onClick={() => cartLineAction("dec", line)} className="w-6 h-6 rounded-md border border-gray-200 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50" aria-label="Decrease">

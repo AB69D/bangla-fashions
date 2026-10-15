@@ -30,12 +30,12 @@ import { useWhatsApp } from "@/hooks/useWhatsApp";
 import { useCatalogConfig } from "@/hooks/useSiteSettings";
 import { getProductImages, getProductCover } from "@/lib/productImages";
 import {
-    getColorOptions,
-    indexForColor,
+    getColors,
+    firstAvailableColor,
+    colorsSellable,
     firstAvailableIndex,
     variantInStock,
     variantStockCount,
-    variantLabel,
     maxQuantity,
 } from "@/lib/productVariants";
 import { splitPhones, telHref } from "@/lib/phone";
@@ -53,6 +53,8 @@ export default function ProductClient({ productId }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedWeight, setSelectedWeight] = useState(0);
+    // Colour is independent of the size: any listed colour goes with any size.
+    const [selectedColor, setSelectedColor] = useState("");
     const [quantity, setQuantity] = useState(1);
     const [adding, setAdding] = useState(false);
     const [added, setAdded] = useState(false);
@@ -78,8 +80,9 @@ export default function ProductClient({ productId }) {
 
                 if (data.success) {
                     setProduct(data.data);
-                    // Open on a colour/size that is in stock rather than a sold-out first row.
+                    // Open on a size and a colour that can be bought, not a sold-out first one.
                     setSelectedWeight(firstAvailableIndex(data.data));
+                    setSelectedColor(firstAvailableColor(data.data));
                     if (productRef.current) {
                         productRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
@@ -171,7 +174,8 @@ export default function ProductClient({ productId }) {
                     productName: product.firstName,
                     productImage: cartImage(),
                     quantity: quantity,
-                    weight: variantLabel(product.weights[selectedWeight]),
+                    weight: product.weights[selectedWeight].weight,
+                    color: selectedColor,
                     weightIndex: selectedWeight,
                     price: product.weights[selectedWeight].price,
                     discountPercent: product.weights[selectedWeight].discountPercent || 0
@@ -227,7 +231,8 @@ export default function ProductClient({ productId }) {
                     productName: product.firstName,
                     productImage: cartImage(),
                     quantity: quantity,
-                    weight: variantLabel(currentWeight),
+                    weight: currentWeight.weight,
+                    color: selectedColor,
                     weightIndex: selectedWeight,
                     price: currentWeight.price,
                     discountPercent: currentWeight.discountPercent || 0
@@ -318,18 +323,15 @@ export default function ProductClient({ productId }) {
     const hasDiscount = currentWeight?.discountPercent > 0;
     const unitPrice = currentWeight ? currentWeight.price - (currentWeight.price * (currentWeight.discountPercent || 0) / 100) : 0;
     const inStock = variantInStock(currentWeight);
+    const colors = getColors(product);
+    // Sold out when this size has no stock, or every colour has been marked sold out.
+    const soldOut = !inStock || !colorsSellable(product);
+    const canBuy = !soldOut && (colors.length === 0 || colors.some((c) => c.name === selectedColor && c.available));
     // The count is only ever shown when the store allows it. The API stops
     // sending it when it doesn't; checking the setting too keeps a stale page honest.
     const showStock = catalog.ready && catalog.showStock;
     const stockCount = variantStockCount(currentWeight);
     const lowStock = showStock && inStock && stockCount !== null && stockCount <= 5;
-    // Colours: swatches pick the colour, and the size buttons then list only
-    // that colour's sizes. A product without colours skips all of this.
-    const colorOptions = getColorOptions(product);
-    const selectedColor = colorOptions.find((o) => o.indexes.includes(selectedWeight)) || null;
-    const sizeIndexes = selectedColor
-        ? selectedColor.indexes
-        : (product.weights || []).map((_, i) => i);
     // contactPhone can hold several numbers; the CTA rings the first one. "" when
     // the admin has left it blank, in which case the button is not rendered.
     const callPhone = splitPhones(wa.contactPhone)[0] || "";
@@ -399,7 +401,7 @@ export default function ProductClient({ productId }) {
                     </div>
 
                     <div className="mt-2">
-                        {!inStock ? (
+                        {soldOut ? (
                             // Always shown: it is why the buy buttons are disabled.
                             <p className="text-sm text-red-500">Out of stock</p>
                         ) : showStock ? (
@@ -418,31 +420,30 @@ export default function ProductClient({ productId }) {
 
                     <SocialProof productId={product._id} className="mt-3" />
 
-                    {/* Colour selector: only on products the admin gave colours to. */}
-                    {colorOptions.length > 0 && (
+                    {/* Colour selector: only on products the admin gave colours to. It is
+                        independent of the size below, so any colour goes with any size. */}
+                    {colors.length > 0 && (
                         <div className="mt-6 sm:mt-7">
                             <p className="block text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2.5">
-                                Color: <span className="font-medium text-gray-600 dark:text-gray-300">{selectedColor?.name}</span>
+                                Color: <span className="font-medium text-gray-600 dark:text-gray-300">{selectedColor || "Select a color"}</span>
                             </p>
                             <div role="radiogroup" aria-label="Color" className="flex flex-wrap gap-2.5">
-                                {colorOptions.map((option) => {
-                                    const isSelected = selectedColor?.name === option.name;
-                                    const swatch = option.hex || null;
+                                {colors.map((color) => {
+                                    const isSelected = selectedColor === color.name;
+                                    const swatch = color.hex || null;
                                     return (
                                         <button
-                                            key={option.name}
+                                            key={color.name}
                                             type="button"
                                             role="radio"
                                             aria-checked={isSelected}
-                                            aria-label={option.inStock ? option.name : `${option.name} (out of stock)`}
-                                            title={option.inStock ? option.name : `${option.name} — out of stock`}
-                                            onClick={() => {
-                                                setSelectedWeight(indexForColor(product, option.name, selectedWeight));
-                                                setQuantity(1);
-                                            }}
-                                            className={`relative flex items-center justify-center overflow-hidden transition-all active:scale-95 ${
+                                            disabled={!color.available}
+                                            aria-label={color.available ? color.name : `${color.name} (sold out)`}
+                                            title={color.available ? color.name : `${color.name} — sold out`}
+                                            onClick={() => setSelectedColor(color.name)}
+                                            className={`relative flex items-center justify-center overflow-hidden transition-all active:scale-95 disabled:cursor-not-allowed ${
                                                 swatch ? "w-10 h-10 rounded-full" : "px-3.5 h-10 rounded-xl text-sm font-medium"
-                                            } ${option.inStock ? "" : "opacity-50"} ${
+                                            } ${color.available ? "" : "opacity-50"} ${
                                                 isSelected
                                                     ? "ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-900"
                                                     : "ring-1 ring-gray-300 dark:ring-gray-600 hover:ring-gray-400"
@@ -453,9 +454,9 @@ export default function ProductClient({ productId }) {
                                             }}
                                         >
                                             {!swatch && (
-                                                <span className="text-gray-700 dark:text-gray-200">{option.name}</span>
+                                                <span className="text-gray-700 dark:text-gray-200">{color.name}</span>
                                             )}
-                                            {!option.inStock && (
+                                            {!color.available && (
                                                 <span aria-hidden="true" className="absolute inset-0 pointer-events-none">
                                                     <span className="absolute left-1/2 top-1/2 h-[2px] w-[140%] -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-gray-500/80" />
                                                 </span>
@@ -467,15 +468,14 @@ export default function ProductClient({ productId }) {
                         </div>
                     )}
 
-                    {/* Size selector: with colours, just the picked colour's sizes. */}
-                    {sizeIndexes.length > 0 && (
+                    {/* Size selector */}
+                    {product.weights && product.weights.length > 0 && (
                         <div className="mt-6 sm:mt-7">
                             <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2.5">
                                 Size / Weight
                             </label>
                             <div className="flex flex-wrap gap-2">
-                                {sizeIndexes.map((index) => {
-                                    const weight = product.weights[index];
+                                {product.weights.map((weight, index) => {
                                     const isSelected = selectedWeight === index;
                                     const isOut = !variantInStock(weight);
                                     return (
@@ -532,15 +532,15 @@ export default function ProductClient({ productId }) {
                          <div className="flex gap-3">
                              <button
                                  onClick={added ? goToCart : handleAddToCart}
-                                 disabled={adding || !inStock}
+                                 disabled={adding || !canBuy}
                                  className="flex-1 min-w-0 text-white font-semibold py-3.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
                                  style={{ background: added ? "#0E6E36" : "var(--theme-primary)" }}
                              >
-                                 {adding ? 'Adding...' : added ? <><FiCheck className="w-5 h-5" /> Added</> : <><FiShoppingCart className="w-4 h-4" /> {inStock ? 'Add to Cart' : 'Out of Stock'}</>}
+                                 {adding ? 'Adding...' : added ? <><FiCheck className="w-5 h-5" /> Added</> : <><FiShoppingCart className="w-4 h-4" /> {canBuy ? 'Add to Cart' : soldOut ? 'Out of Stock' : 'Choose a color'}</>}
                              </button>
                              <button
                                  onClick={handleCashOnDelivery}
-                                 disabled={adding || !inStock}
+                                 disabled={adding || !canBuy}
                                  className="flex-1 min-w-0 font-semibold py-3.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] border-2"
                                  style={{ borderColor: "var(--theme-primary)", color: "var(--theme-primary)" }}
                              >
@@ -697,11 +697,11 @@ export default function ProductClient({ productId }) {
                     </div>
                     <button
                         onClick={added ? goToCart : handleAddToCart}
-                        disabled={adding || !inStock}
+                        disabled={adding || !canBuy}
                         className="flex-1 text-white font-semibold py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm"
                         style={{ background: added ? "#0E6E36" : "var(--theme-primary)" }}
                     >
-                        {adding ? 'Adding...' : added ? <><FiCheck className="w-4 h-4" /> Added</> : <><FiShoppingCart className="w-4 h-4" /> {inStock ? 'Add to Cart' : 'Out of Stock'}</>}
+                        {adding ? 'Adding...' : added ? <><FiCheck className="w-4 h-4" /> Added</> : <><FiShoppingCart className="w-4 h-4" /> {canBuy ? 'Add to Cart' : soldOut ? 'Out of Stock' : 'Choose a color'}</>}
                     </button>
                 </div>
             </div>

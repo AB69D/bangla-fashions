@@ -7,7 +7,8 @@
 // server-side from the database on every turn — the client value is never
 // trusted.
 
-import ProductModel, { variantLabel } from '../models/product.model.js';
+import ProductModel, { lineLabel } from '../models/product.model.js';
+import { resolveColorChoice } from '../lib/colorChoice.js';
 import { isStockVisible } from '../lib/publicProduct.js';
 import CategoryModel from '../models/category.model.js';
 import OrderModel from '../models/order.model.js';
@@ -76,6 +77,7 @@ function sanitizeContext(raw, guestId) {
         .map((it) => ({
             productId: String(it?.productId || ''),
             weightIndex: Math.max(0, Math.floor(Number(it?.weightIndex) || 0)),
+            color: typeof it?.color === 'string' ? it.color.trim().slice(0, 30) : '',
             quantity: clampQty(it?.quantity),
         }))
         .filter((it) => it.productId);
@@ -114,15 +116,21 @@ async function findProducts(query) {
 }
 
 function buildCard(p, symbol, showStock) {
+    // Colours are independent of the size: the card offers the available ones
+    // next to the sizes, and a product whose colours are all sold out can't be bought.
+    const colors = (p.colors || [])
+        .filter((c) => c.available !== false)
+        .map((c) => ({ name: c.name, hex: c.hex || '' }));
+    const sellable = !(p.colors || []).length || colors.length > 0;
     const variants = (p.weights || []).map((w, i) => ({
         weightIndex: i,
-        weight: variantLabel(w),
+        weight: w.weight,
         // The count only goes to the shopper while the store shows stock.
         ...(showStock ? { stock: Number(w.stock) || 0 } : {}),
         price: unitPrice(w),
         priceLabel: money(unitPrice(w), symbol),
         discountPercent: Number(w.discountPercent) || 0,
-        inStock: (Number(w.stock) || 0) > 0,
+        inStock: sellable && (Number(w.stock) || 0) > 0,
     }));
     const prices = variants.filter((v) => v.inStock).map((v) => v.price);
     return {
@@ -130,6 +138,7 @@ function buildCard(p, symbol, showStock) {
         name: productName(p),
         image: variantImage(p, 0),
         description: (p.description || '').slice(0, 140),
+        colors,
         variants,
         fromPrice: prices.length ? money(Math.min(...prices), symbol) : null,
         inStock: variants.some((v) => v.inStock),
@@ -147,6 +156,8 @@ async function resolveCart(cart, symbol) {
     const lines = [];
     const issues = [];
     let subtotal = 0;
+    // Stock is kept per size, so two colours of one size draw from the same pool.
+    const remaining = new Map();
     for (const item of cart) {
         const p = byId.get(item.productId);
         const w = p?.weights?.[item.weightIndex];
@@ -154,17 +165,25 @@ async function resolveCart(cart, symbol) {
             issues.push('An item is no longer available and was skipped.');
             continue;
         }
-        const stock = Number(w.stock) || 0;
+        const choice = resolveColorChoice(p, item.color);
+        const label = lineLabel(w.weight, choice.ok ? choice.color : item.color);
+        if (!choice.ok) {
+            issues.push(`${productName(p)}: ${choice.message}.`);
+            continue;
+        }
+        const poolKey = `${item.productId}:${item.weightIndex}`;
+        const stock = remaining.has(poolKey) ? remaining.get(poolKey) : Number(w.stock) || 0;
         const qty = Math.min(item.quantity, Math.max(0, stock));
+        remaining.set(poolKey, stock - qty);
         const price = unitPrice(w);
         const lineTotal = round2(price * qty);
         if (stock <= 0) {
-            issues.push(`${productName(p)} (${variantLabel(w)}) is out of stock.`);
+            issues.push(`${productName(p)} (${label}) is out of stock.`);
         } else if (item.quantity > stock) {
             issues.push(
                 showStock
-                    ? `Only ${stock} of ${productName(p)} (${variantLabel(w)}) left — adjusted.`
-                    : `${productName(p)} (${variantLabel(w)}) is not available in that quantity — adjusted.`
+                    ? `Only ${stock} of ${productName(p)} (${label}) left — adjusted.`
+                    : `${productName(p)} (${label}) is not available in that quantity — adjusted.`
             );
         }
         if (qty <= 0) continue;
@@ -172,15 +191,16 @@ async function resolveCart(cart, symbol) {
         lines.push({
             productId: item.productId,
             weightIndex: item.weightIndex,
+            color: choice.color,
             quantity: qty,
             name: productName(p),
-            weight: variantLabel(w),
+            weight: label,
             image: variantImage(p, item.weightIndex),
             unitPrice: price,
             unitPriceLabel: money(price, symbol),
             lineTotal,
             lineTotalLabel: money(lineTotal, symbol),
-            ...(showStock ? { stock } : {}),
+            ...(showStock ? { stock: Number(w.stock) || 0 } : {}),
         });
     }
     return {
@@ -284,18 +304,40 @@ async function addToCart(action, ctx, symbol) {
     const p = await ProductModel.findById(productId).lean().catch(() => null);
     const w = p?.weights?.[weightIndex];
     if (!p || !w) return respond('That product is no longer available.', ctx, symbol);
-    if ((Number(w.stock) || 0) <= 0) {
-        return respond(`Sorry, ${productName(p)} (${variantLabel(w)}) is out of stock right now.`, ctx, symbol);
+
+    // The colour must be one the product offers; a coloured product can't be added without one.
+    const choice = resolveColorChoice(p, action.color);
+    if (!choice.ok) return respond(`Sorry, ${productName(p)}: ${choice.message}.`, ctx, symbol);
+    const label = lineLabel(w.weight, choice.color);
+
+    const stock = Number(w.stock) || 0;
+    if (stock <= 0) {
+        return respond(`Sorry, ${productName(p)} (${label}) is out of stock right now.`, ctx, symbol);
+    }
+    // All colours of a size share its stock, so count every line of that size.
+    const inCart = ctx.cart
+        .filter((c) => c.productId === productId && c.weightIndex === weightIndex)
+        .reduce((sum, c) => sum + c.quantity, 0);
+    if (inCart + qty > stock) {
+        return respond(
+            (await isStockVisible())
+                ? `Sorry, only ${stock} of ${productName(p)} (${w.weight}) are available and you already have ${inCart} in your order.`
+                : `Sorry, you can't add more of ${productName(p)} (${w.weight}) right now.`,
+            ctx,
+            symbol,
+        );
     }
 
-    const existing = ctx.cart.find((c) => c.productId === productId && c.weightIndex === weightIndex);
+    const existing = ctx.cart.find(
+        (c) => c.productId === productId && c.weightIndex === weightIndex && (c.color || '') === choice.color,
+    );
     if (existing) existing.quantity = clampQty(existing.quantity + qty);
-    else ctx.cart.push({ productId, weightIndex, quantity: qty });
+    else ctx.cart.push({ productId, weightIndex, color: choice.color, quantity: qty });
     ctx.cart = ctx.cart.slice(0, MAX_CART_LINES);
 
     const snap = await resolveCart(ctx.cart, symbol);
     return respond(
-        `Added **${productName(p)} (${variantLabel(w)})** to your order. Your cart total is **${money(snap.subtotal, symbol)}**.`,
+        `Added **${productName(p)} (${label})** to your order. Your cart total is **${money(snap.subtotal, symbol)}**.`,
         ctx,
         symbol,
         { cart: snap, quickReplies: [
@@ -311,7 +353,10 @@ async function modifyCart(action, ctx, symbol) {
     let idx = -1;
     if (action.productId) {
         const wi = Math.max(0, Math.floor(Number(action.weightIndex) || 0));
-        idx = ctx.cart.findIndex((c) => c.productId === String(action.productId) && c.weightIndex === wi);
+        const col = typeof action.color === 'string' ? action.color.trim() : '';
+        idx = ctx.cart.findIndex(
+            (c) => c.productId === String(action.productId) && c.weightIndex === wi && (c.color || '') === col,
+        );
     }
     if (idx < 0 && action.index !== undefined) idx = Math.floor(Number(action.index));
     if (!ctx.cart[idx]) return showCart(ctx, symbol);
@@ -405,6 +450,7 @@ async function placeOrder(ctx, symbol) {
         productImage: l.image,
         quantity: l.quantity,
         weight: l.weight,
+        color: l.color || '',
         weightIndex: l.weightIndex,
         price: l.unitPrice,
         totalPrice: l.lineTotal,

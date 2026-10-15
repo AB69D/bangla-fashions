@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import CartModel from '../models/cart.model.js';
-import ProductModel, { variantLabel } from '../models/product.model.js';
+import ProductModel, { lineLabel } from '../models/product.model.js';
 import { isStockVisible } from '../lib/publicProduct.js';
+import { resolveColorChoice } from '../lib/colorChoice.js';
 import { findMissingProductIds, pruneCartsByProduct } from '../services/productCascade.js';
 import { logger } from '../lib/logger.js';
 
@@ -19,6 +20,15 @@ const shortStockMessage = (showStock, available) => {
         ? `Only ${available} items available in stock`
         : 'Sorry, that quantity is not available right now';
 };
+
+// Units of one size already in the cart, across every colour. Stock is kept per
+// size (colour does not split it), so two colours of the same size draw from the
+// same pool and the quantity limit has to be checked on the sum.
+const sizeQuantityInCart = (cart, productId, weightIndex, exceptItemId = null) =>
+    cart.items
+        .filter((it) => it.productId === productId && it.weightIndex === weightIndex
+            && (exceptItemId === null || String(it._id) !== exceptItemId))
+        .reduce((sum, it) => sum + it.quantity, 0);
 
 // Self-heal on read. Deleting a product pulls it from every cart, but a cart can
 // still hold a line for a product that is gone (deleted before the cascade
@@ -78,7 +88,7 @@ clientCartRouter.get('/get', async (req, res) => {
 
 clientCartRouter.post('/add', async (req, res) => {
     try {
-        const { productId, productName, productImage, quantity = 1, weightIndex = 0 } = req.body;
+        const { productId, productName, productImage, quantity = 1, weightIndex = 0, color } = req.body;
         let guestId = getGuestId(req);
 
         // Ensure weightIndex is a number
@@ -103,6 +113,17 @@ clientCartRouter.post('/add', async (req, res) => {
         if (!product || !product.weights || !product.weights[weightIdx]) {
             return res.status(400).json({
                 message: "Product or weight variant not found",
+                error: true,
+                success: false
+            });
+        }
+
+        // Which colour, if the product has any. Checked against the product's own
+        // list, never taken on trust.
+        const choice = resolveColorChoice(product, color);
+        if (!choice.ok) {
+            return res.status(400).json({
+                message: choice.message,
                 error: true,
                 success: false
             });
@@ -145,26 +166,27 @@ clientCartRouter.post('/add', async (req, res) => {
             });
         }
 
-        // Check if item already exists with same productId and weightIndex
+        // The size's stock is shared by all its colours: what is already in the
+        // cart under any colour counts against it.
+        const inCartForSize = sizeQuantityInCart(cart, productId, weightIdx);
+        if (inCartForSize + qty > availableStock) {
+            return res.status(400).json({
+                message: showStock
+                    ? `Only ${availableStock} items available. You already have ${inCartForSize} in cart.`
+                    : 'Sorry, you cannot add more of this item right now',
+                error: true,
+                success: false
+            });
+        }
+
+        // Same product, size AND colour is the same line; another colour is a new one.
         const existingItemIndex = cart.items.findIndex(
             item => item.productId === productId && item.weightIndex === weightIdx
+                && (item.color || '') === choice.color
         );
 
-        let newQuantity = qty;
         if (existingItemIndex > -1) {
-            newQuantity = cart.items[existingItemIndex].quantity + qty;
-            // Check stock for total quantity
-            const currentStock = product.weights[weightIdx]?.stock || 0;
-            if (newQuantity > currentStock) {
-                return res.status(400).json({
-                    message: showStock
-                        ? `Only ${currentStock} items available. You already have ${cart.items[existingItemIndex].quantity} in cart.`
-                        : 'Sorry, you cannot add more of this item right now',
-                    error: true,
-                    success: false
-                });
-            }
-            cart.items[existingItemIndex].quantity = newQuantity;
+            cart.items[existingItemIndex].quantity += qty;
             cart.items[existingItemIndex].price = price;
             cart.items[existingItemIndex].discountPercent = discountPercent || 0;
         } else {
@@ -176,8 +198,9 @@ clientCartRouter.post('/add', async (req, res) => {
                 productName: productName || product.firstName || '',
                 productImage: productImage || product.cover_image || '',
                 quantity: qty,
-                // Built from the product record, never the client: includes the colour.
-                weight: variantLabel(product.weights[weightIdx]),
+                // Built from the product record, never the client.
+                weight: lineLabel(product.weights[weightIdx].weight, choice.color),
+                color: choice.color,
                 weightIndex: weightIdx,
                 price: price,
                 discountPercent: discountPercent || 0
@@ -237,12 +260,14 @@ clientCartRouter.put('/update', async (req, res) => {
             const cartItem = cart.items[itemIndex];
             const newQty = Number(quantity) || 0;
             
-            // Check stock availability when increasing quantity
+            // Check stock availability when increasing quantity. The size's stock
+            // is shared by its colours, so the other lines of that size count too.
             if (newQty > cartItem.quantity) {
                 const product = await ProductModel.findById(cartItem.productId);
                 if (product && product.weights && product.weights[cartItem.weightIndex] !== undefined) {
                     const availableStock = product.weights[cartItem.weightIndex]?.stock || 0;
-                    if (newQty > availableStock) {
+                    const inOtherLines = sizeQuantityInCart(cart, cartItem.productId, cartItem.weightIndex, String(cartItem._id));
+                    if (newQty + inOtherLines > availableStock) {
                         return res.status(400).json({
                             message: shortStockMessage(await isStockVisible(), availableStock),
                             error: true,

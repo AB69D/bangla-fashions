@@ -3,8 +3,10 @@ import { useState } from "react";
 import { FiPlus, FiX } from "react-icons/fi";
 
 // Product form section where the admin lists the colors a product is sold in.
-// Each size row below it then picks one of these, and the storefront shows them
-// as swatches. Used by both the create form and the edit modal.
+// Colors are independent of the sizes: the storefront shows them as swatches and
+// the shopper picks any color with any size. Stock is kept per size, so a color
+// has no stock of its own; marking it "Sold out" is how the admin stops selling
+// it. Used by both the create form and the edit modal.
 
 export const MAX_COLORS = 20;
 export const MAX_COLOR_NAME = 30; // mirrors the backend limit
@@ -43,33 +45,11 @@ const DEFAULT_SWATCH = "#d32f2f";
 
 const sameName = (a, b) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
 
-// After the color list changes, a size row that points at a color that is no
-// longer listed has to be cleared (the server rejects it otherwise).
-export const reconcileVariantColors = (variants, colors) =>
-    variants.map((v) => (v.color && !colors.some((c) => sameName(c.name, v.color)) ? { ...v, color: "" } : v));
-
-// Two rows for the same size in the same color would be indistinguishable to a
-// shopper. Returns the first repeated "M / Red" label, or null. Only meaningful
-// once the product has colors (older products may legitimately repeat a size).
-export const findDuplicateVariant = (variants) => {
-    const seen = new Set();
-    for (const v of variants) {
-        const size = String(v.weight ?? "").trim();
-        const color = String(v.color ?? "").trim();
-        const key = `${size.toLowerCase()}|${color.toLowerCase()}`;
-        if (seen.has(key)) return color ? `${size} / ${color}` : size;
-        seen.add(key);
-    }
-    return null;
-};
-
-export default function ProductColorsEditor({ colors, onChange, lockedNames = [], disabled = false }) {
+export default function ProductColorsEditor({ colors, onChange, disabled = false }) {
     const [name, setName] = useState("");
     const [hex, setHex] = useState(DEFAULT_SWATCH);
     const [pickedByHand, setPickedByHand] = useState(false);
     const [error, setError] = useState("");
-
-    const isLocked = (colorName) => lockedNames.some((n) => sameName(n, colorName));
 
     const handleName = (value) => {
         setName(value);
@@ -86,13 +66,15 @@ export default function ProductColorsEditor({ colors, onChange, lockedNames = []
         if (clean.length > MAX_COLOR_NAME) return setError(`Keep the name under ${MAX_COLOR_NAME} characters.`);
         if (colors.some((c) => sameName(c.name, clean))) return setError(`${clean} is already added.`);
         if (colors.length >= MAX_COLORS) return setError(`A product can have at most ${MAX_COLORS} colors.`);
-        onChange([...colors, { name: clean, hex }]);
+        onChange([...colors, { name: clean, hex, available: true }]);
         setName("");
         setPickedByHand(false);
         setError("");
     };
 
     const remove = (colorName) => onChange(colors.filter((c) => !sameName(c.name, colorName)));
+    const toggleAvailable = (colorName) =>
+        onChange(colors.map((c) => (sameName(c.name, colorName) ? { ...c, available: c.available === false } : c)));
 
     return (
         <div className="border-t pt-4 sm:pt-5">
@@ -101,15 +83,16 @@ export default function ProductColorsEditor({ colors, onChange, lockedNames = []
                     Colors <span className="text-xs font-normal text-gray-400">(optional)</span>
                 </h4>
                 <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5">
-                    List the colors this product is available in. Customers pick one before ordering. Then choose a color
-                    for each size below and set its own stock. Leave empty if the product comes in a single color.
+                    List the colors this product comes in. Customers pick a color and a size separately, so any listed color
+                    goes with any size. Stock is counted per size, not per color: tap a color&apos;s status to mark it
+                    Sold out. Leave empty if the product comes in a single color.
                 </p>
             </div>
 
             {colors.length > 0 && (
                 <ul className="flex flex-wrap gap-2 mb-3">
                     {colors.map((c) => {
-                        const locked = isLocked(c.name);
+                        const soldOut = c.available === false;
                         return (
                             <li
                                 key={c.name}
@@ -120,14 +103,26 @@ export default function ProductColorsEditor({ colors, onChange, lockedNames = []
                                     className="w-5 h-5 rounded-full border border-gray-300"
                                     style={{ background: c.hex || "transparent" }}
                                 />
-                                <span className="font-medium">{c.name}</span>
+                                <span className={`font-medium ${soldOut ? "line-through text-gray-400" : ""}`}>{c.name}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => toggleAvailable(c.name)}
+                                    disabled={disabled}
+                                    aria-pressed={soldOut}
+                                    title={soldOut ? "Sold out. Tap to sell it again" : "Tap to mark this color Sold out"}
+                                    className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold disabled:opacity-50 ${
+                                        soldOut ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"
+                                    }`}
+                                >
+                                    {soldOut ? "Sold out" : "Available"}
+                                </button>
                                 <button
                                     type="button"
                                     onClick={() => remove(c.name)}
-                                    disabled={disabled || locked}
-                                    title={locked ? "Used by a size row, so it can't be removed here" : `Remove ${c.name}`}
+                                    disabled={disabled}
+                                    title={`Remove ${c.name}`}
                                     aria-label={`Remove ${c.name}`}
-                                    className="w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 disabled:cursor-not-allowed"
+                                    className="w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 disabled:opacity-30"
                                 >
                                     <FiX className="w-3.5 h-3.5" />
                                 </button>

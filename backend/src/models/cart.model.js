@@ -22,6 +22,12 @@ const cartItemSchema = new Schema({
         type: String,
         default: ''
     },
+    // The colour the shopper picked ('' on a product without colours). Part of
+    // the line's identity: same size in two colours is two lines.
+    color: {
+        type: String,
+        default: ''
+    },
     weightIndex: {
         type: Number,
         default: 0

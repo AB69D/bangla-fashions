@@ -12,6 +12,7 @@ import { screenCheckout, normalizePhoneBD } from '../lib/blocklist.js';
 import { scoreCheckoutRisk } from '../lib/fraudScore.js';
 import { checkCourierRatio, evaluateCourierRatio } from '../lib/courierRatio.js';
 import { getSettings } from '../lib/siteSettings.js';
+import { resolveColorChoice } from '../lib/colorChoice.js';
 
 // Merges a new risk signal into req.riskFlag, combining reasons/sources with
 // whatever a prior check (blocklist, in-house scorer, courier ratio) already
@@ -133,9 +134,10 @@ clientOrderRouter.post('/create', optionalCustomer, screenCheckout, async (req, 
         // referenced products once — the cart only stores the sell price.
         const cartProductIds = [...new Set(cart.items.map((it) => it.productId).filter(Boolean))];
         const cartProducts = await ProductModel.find({ _id: { $in: cartProductIds } })
-            .select('weights')
+            .select('weights colors')
             .lean();
         const weightsByProductId = new Map(cartProducts.map((p) => [String(p._id), p.weights || []]));
+        const productById = new Map(cartProducts.map((p) => [String(p._id), p]));
         const costFor = (productId, weightIndex) => {
             const weights = weightsByProductId.get(String(productId));
             const w = weights?.[weightIndex || 0];
@@ -149,11 +151,28 @@ clientOrderRouter.post('/create', optionalCustomer, screenCheckout, async (req, 
             productImage: item.productImage,
             quantity: item.quantity,
             weight: item.weight,
+            color: item.color || '',
             weightIndex: item.weightIndex || 0,
             price: item.price,
             totalPrice: item.price * item.quantity,
             costPrice: costFor(item.productId, item.weightIndex || 0)
         }));
+
+        // A line's colour was valid when it went into the cart; the admin may have
+        // removed it or marked it sold out since, or added colours to a product the
+        // shopper had already carted. Re-check against the product as it is now.
+        for (const item of orderItems) {
+            const product = productById.get(String(item.productId));
+            if (!product) continue; // a missing product is caught by the stock step below
+            const choice = resolveColorChoice(product, item.color);
+            if (!choice.ok) {
+                return res.status(409).json({
+                    message: `"${item.productName}": ${choice.message}. Please review your cart and try again.`,
+                    error: true,
+                    success: false
+                });
+            }
+        }
 
         const subtotal = cart.totalAmount;
 

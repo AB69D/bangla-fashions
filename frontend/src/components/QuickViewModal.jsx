@@ -9,11 +9,11 @@ import { trackAddToCart } from "@/lib/tracking";
 import { useCatalogConfig } from "@/hooks/useSiteSettings";
 import { getProductImages, getProductCover } from "@/lib/productImages";
 import {
-    getColorOptions,
-    indexForColor,
+    getColors,
+    firstAvailableColor,
+    colorsSellable,
     firstAvailableIndex,
     variantInStock,
-    variantLabel,
     maxQuantity,
 } from "@/lib/productVariants";
 
@@ -28,6 +28,7 @@ export default function QuickViewModal() {
     const [full, setFull] = useState(null);
     const [loading, setLoading] = useState(false);
     const [selectedWeight, setSelectedWeight] = useState(0);
+    const [selectedColor, setSelectedColor] = useState("");
     const [quantity, setQuantity] = useState(1);
     const [adding, setAdding] = useState(false);
     const [added, setAdded] = useState(false);
@@ -38,8 +39,9 @@ export default function QuickViewModal() {
             return undefined;
         }
         setLoading(true);
-        // Start on a colour/size that can be bought, not a sold-out first row.
+        // Start on a size and a colour that can be bought, not a sold-out first one.
         setSelectedWeight(firstAvailableIndex(summary));
+        setSelectedColor(firstAvailableColor(summary));
         setQuantity(1);
         setAdded(false);
         let cancelled = false;
@@ -82,16 +84,15 @@ export default function QuickViewModal() {
         : undefined;
     const hasDiscount = currentWeight?.discountPercent > 0;
     const unitPrice = currentWeight ? currentWeight.price - (currentWeight.price * (currentWeight.discountPercent || 0) / 100) : 0;
-    const inStock = variantInStock(currentWeight);
-    const colorOptions = getColorOptions(product);
-    const selectedColor = colorOptions.find((o) => o.indexes.includes(selectedWeight)) || null;
-    const sizeIndexes = selectedColor ? selectedColor.indexes : (product.weights || []).map((_, i) => i);
+    const colors = getColors(product);
+    const soldOut = !variantInStock(currentWeight) || !colorsSellable(product);
+    const canBuy = !soldOut && (colors.length === 0 || colors.some((c) => c.name === selectedColor && c.available));
 
     const handleAdd = async () => {
         if (!currentWeight) return;
         setAdding(true);
         try {
-            await addToCart(product._id, quantity, variantLabel(currentWeight), selectedWeight, currentWeight.price, currentWeight.discountPercent || 0, product.firstName, image || getProductCover(product));
+            await addToCart(product._id, quantity, currentWeight.weight, selectedWeight, currentWeight.price, currentWeight.discountPercent || 0, product.firstName, image || getProductCover(product), selectedColor);
             trackAddToCart({ productId: product._id, name: product.firstName, price: unitPrice, quantity, currency: undefined });
             window.dispatchEvent(new Event("cart-updated"));
             setAdded(true);
@@ -157,27 +158,28 @@ export default function QuickViewModal() {
                             <div className="mt-4 h-4 w-32 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
                         )}
 
-                        {colorOptions.length > 0 && (
+                        {colors.length > 0 && (
                             <div className="mt-4">
                                 <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                    Color: <span className="font-medium text-gray-500 dark:text-gray-400">{selectedColor?.name}</span>
+                                    Color: <span className="font-medium text-gray-500 dark:text-gray-400">{selectedColor || "Select a color"}</span>
                                 </p>
                                 <div role="radiogroup" aria-label="Color" className="flex flex-wrap gap-2">
-                                    {colorOptions.map((option) => {
-                                        const isSelected = selectedColor?.name === option.name;
-                                        const swatch = option.hex || null;
+                                    {colors.map((color) => {
+                                        const isSelected = selectedColor === color.name;
+                                        const swatch = color.hex || null;
                                         return (
                                             <button
-                                                key={option.name}
+                                                key={color.name}
                                                 type="button"
                                                 role="radio"
                                                 aria-checked={isSelected}
-                                                aria-label={option.inStock ? option.name : `${option.name} (out of stock)`}
-                                                title={option.inStock ? option.name : `${option.name} — out of stock`}
-                                                onClick={() => { setSelectedWeight(indexForColor(product, option.name, selectedWeight)); setQuantity(1); }}
-                                                className={`relative flex items-center justify-center overflow-hidden transition-all active:scale-95 ${
+                                                disabled={!color.available}
+                                                aria-label={color.available ? color.name : `${color.name} (sold out)`}
+                                                title={color.available ? color.name : `${color.name} — sold out`}
+                                                onClick={() => setSelectedColor(color.name)}
+                                                className={`relative flex items-center justify-center overflow-hidden transition-all active:scale-95 disabled:cursor-not-allowed ${
                                                     swatch ? "w-8 h-8 rounded-full" : "px-3 h-8 rounded-lg text-xs font-medium"
-                                                } ${option.inStock ? "" : "opacity-50"} ${
+                                                } ${color.available ? "" : "opacity-50"} ${
                                                     isSelected
                                                         ? "ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-900"
                                                         : "ring-1 ring-gray-300 dark:ring-gray-600 hover:ring-gray-400"
@@ -187,8 +189,8 @@ export default function QuickViewModal() {
                                                     ...(isSelected ? { "--tw-ring-color": "var(--theme-primary)" } : {}),
                                                 }}
                                             >
-                                                {!swatch && <span className="text-gray-700 dark:text-gray-200">{option.name}</span>}
-                                                {!option.inStock && (
+                                                {!swatch && <span className="text-gray-700 dark:text-gray-200">{color.name}</span>}
+                                                {!color.available && (
                                                     <span aria-hidden="true" className="absolute inset-0 pointer-events-none">
                                                         <span className="absolute left-1/2 top-1/2 h-[2px] w-[140%] -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-gray-500/80" />
                                                     </span>
@@ -200,12 +202,11 @@ export default function QuickViewModal() {
                             </div>
                         )}
 
-                        {sizeIndexes.length > 0 && (
+                        {product.weights?.length > 0 && (
                             <div className="mt-4">
                                 <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Size / Weight</p>
                                 <div className="flex flex-wrap gap-2">
-                                    {sizeIndexes.map((i) => {
-                                        const w = product.weights[i];
+                                    {product.weights.map((w, i) => {
                                         const out = !variantInStock(w);
                                         const sel = selectedWeight === i;
                                         return (
@@ -241,11 +242,11 @@ export default function QuickViewModal() {
 
                         <button
                             onClick={handleAdd}
-                            disabled={adding || !inStock}
+                            disabled={adding || !canBuy}
                             className="mt-5 w-full text-white font-semibold py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                             style={{ background: added ? "#128A44" : "var(--theme-primary)" }}
                         >
-                            {adding ? "Adding..." : added ? <><FiCheck className="w-4 h-4" /> Added to cart</> : <><FiShoppingCart className="w-4 h-4" /> {inStock ? "Add to Cart" : "Out of Stock"}</>}
+                            {adding ? "Adding..." : added ? <><FiCheck className="w-4 h-4" /> Added to cart</> : <><FiShoppingCart className="w-4 h-4" /> {canBuy ? "Add to Cart" : soldOut ? "Out of Stock" : "Choose a color"}</>}
                         </button>
 
                         <Link

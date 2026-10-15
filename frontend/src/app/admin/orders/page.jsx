@@ -825,6 +825,7 @@ export default function AdminOrdersPage() {
                                             </div>
                                             <div className="flex-1">
                                                 <p className="font-medium text-gray-800">{item.productName}</p>
+                                                {item.weight && <p className="text-sm font-medium text-emerald-700">{item.weight}</p>}
                                                 <p className="text-sm text-gray-500">Qty: {item.quantity} x {symbol}{item.price}</p>
                                             </div>
                                             <p className="font-bold text-gray-800">{symbol}{item.totalPrice}</p>

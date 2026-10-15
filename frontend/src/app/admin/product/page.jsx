@@ -1,7 +1,7 @@
 "use client";
 import { authFetch } from "@/services/api";
 import React, { useState, useEffect } from "react";
-import { FiUploadCloud, FiPlus, FiTrash2, FiChevronDown, FiChevronUp, FiLock, FiCopy } from "react-icons/fi";
+import { FiUploadCloud, FiPlus, FiTrash2, FiChevronDown, FiChevronUp, FiLock } from "react-icons/fi";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import ProductImageManager, {
     appendImagesToFormData,
@@ -10,22 +10,8 @@ import ProductImageManager, {
     MAX_FILES_PER_REQUEST,
     MAX_IMAGE_SIZES,
 } from "@/components/admin/ProductImageManager";
-import ProductColorsEditor, { reconcileVariantColors, findDuplicateVariant } from "@/components/admin/ProductColorsEditor";
-import { variantLabel } from "@/lib/productVariants";
-
-// Stable per-row key so a size's image manager (and its blob: previews) stays
-// attached to the right row when an earlier size is removed.
-let weightKeySeq = 0;
-const newWeight = () => ({ _key: ++weightKeySeq, weight: "", color: "", stock: "", price: "", costPrice: "", sku: "", barcode: "", images: [] });
-
-// Mirror of the backend GS1 "internal use" (prefix 2) barcode so the admin can
-// preview/lock a code in the form. The server fills any blank code on save.
-const genBarcodePreview = (index = 0) => {
-    const ts = String(Date.now()).slice(-8);
-    const rand = String(Math.floor(Math.random() * 90) + 10);
-    const idx = String(index % 100).padStart(2, "0");
-    return `2${ts}${rand}${idx}`;
-};
+import ProductColorsEditor from "@/components/admin/ProductColorsEditor";
+import ProductSizesEditor, { findDuplicateSize } from "@/components/admin/ProductSizesEditor";
 
 export default function CreateProductPage() {
     const { can } = useAdminAuth();
@@ -34,8 +20,13 @@ export default function CreateProductPage() {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
     const [categories, setCategories] = useState([]);
-    const [weights, setWeights] = useState(() => [newWeight()]);
-    // Colors the product is sold in; every size row then picks one of them.
+    // One row per size. How they are priced is the admin's choice: one price
+    // shared by every ticked size, or a price on each size.
+    const [weights, setWeights] = useState([]);
+    const [priceMode, setPriceMode] = useState("same");
+    const [sharedPrice, setSharedPrice] = useState("");
+    const [sharedCost, setSharedCost] = useState("");
+    // Colors the product is sold in. Independent of the sizes.
     const [colors, setColors] = useState([]);
     // Variant mode: one optional cover + photos per size. Product mode: a single gallery.
     const [coverItems, setCoverItems] = useState([]);
@@ -65,35 +56,6 @@ export default function CreateProductPage() {
     const showMessage = (text) => {
         setMessage(text);
         if (text) window.scrollTo({ top: 0, behavior: "smooth" });
-    };
-
-    const addWeight = () => {
-        setWeights((prev) => [...prev, newWeight()]);
-    };
-
-    // Changing the color list also clears any size row that pointed at a color
-    // that just left it, so a stale choice can't reach the server.
-    const handleColorsChange = (next) => {
-        setColors(next);
-        setWeights((prev) => reconcileVariantColors(prev, next));
-    };
-
-    // Same size and price, ready for the next color: stock, codes and photos are
-    // per variant so they start blank.
-    const duplicateWeight = (index) => {
-        setWeights((prev) => {
-            const src = prev[index];
-            const copy = { ...newWeight(), weight: src.weight, price: src.price, costPrice: src.costPrice };
-            return [...prev.slice(0, index + 1), copy, ...prev.slice(index + 1)];
-        });
-    };
-
-    const removeWeight = (index) => {
-        setWeights((prev) => prev.filter((_, i) => i !== index));
-    };
-
-    const updateWeight = (index, field, value) => {
-        setWeights((prev) => prev.map((w, i) => (i === index ? { ...w, [field]: value } : w)));
     };
 
     const addQA = () => {
@@ -129,17 +91,18 @@ export default function CreateProductPage() {
             showMessage(`Error: photos can only be attached to the first ${MAX_IMAGE_SIZES} size rows.`);
             return;
         }
-        if (colors.length > 0) {
-            const missing = weights.findIndex((w) => !w.color);
-            if (missing !== -1) {
-                showMessage(`Error: choose a color for size row ${missing + 1}, or remove the colors above.`);
-                return;
-            }
-            const dup = findDuplicateVariant(weights);
-            if (dup) {
-                showMessage(`Error: ${dup} is listed twice. Each size needs one row per color.`);
-                return;
-            }
+        if (weights.length === 0) {
+            showMessage("Error: add at least one size.");
+            return;
+        }
+        const dupSize = findDuplicateSize(weights);
+        if (dupSize) {
+            showMessage(`Error: size ${dupSize} is listed twice.`);
+            return;
+        }
+        if (priceMode === "same" && !(parseFloat(sharedPrice) >= 0)) {
+            showMessage("Error: enter the price that applies to every size.");
+            return;
         }
 
         setLoading(true);
@@ -154,10 +117,10 @@ export default function CreateProductPage() {
         formData.append("colors", JSON.stringify(colors));
         formData.append("weights", JSON.stringify(weights.map(w => ({
             weight: w.weight,
-            color: w.color,
             stock: parseInt(w.stock) || 0,
-            price: parseFloat(w.price) || 0,
-            costPrice: parseFloat(w.costPrice) || 0,
+            // "Same price" mode: every ticked size takes the one shared price.
+            price: parseFloat(priceMode === "same" ? sharedPrice : w.price) || 0,
+            costPrice: parseFloat(priceMode === "same" ? sharedCost : w.costPrice) || 0,
             sku: (w.sku || "").trim(),
             barcode: (w.barcode || "").trim()
         }))));
@@ -186,7 +149,10 @@ export default function CreateProductPage() {
             if (data.success) {
                 showMessage(`Success: ${data.message}`);
                 form.reset();
-                setWeights([newWeight()]);
+                setWeights([]);
+                setPriceMode("same");
+                setSharedPrice("");
+                setSharedCost("");
                 setColors([]);
                 setCoverItems([]);
                 setGalleryItems([]);
@@ -313,157 +279,20 @@ export default function CreateProductPage() {
                     </label>
                 </div>
 
-                <ProductColorsEditor colors={colors} onChange={handleColorsChange} disabled={loading} />
+                <ProductColorsEditor colors={colors} onChange={setColors} disabled={loading} />
 
-                <div className="border-t pt-4 sm:pt-5">
-                    <div className="flex items-center justify-between mb-3 sm:mb-4">
-                        <h4 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-800">{colors.length > 0 ? "Sizes & Stock by Color" : "Product Sizes"}</h4>
-                        <button 
-                            type="button" 
-                            onClick={addWeight}
-                            className="flex items-center gap-1 text-xs sm:text-sm text-emerald-600 hover:text-emerald-700"
-                        >
-                            <FiPlus className="w-3 h-3 sm:w-4 sm:h-4" /> Add Size
-                        </button>
-                    </div>
-
-                    {weights.map((weight, index) => (
-                        <div key={weight._key} className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-3 sm:mb-4 border">
-                            <div className="flex items-center justify-between mb-2 sm:mb-3">
-                                <span className="text-xs sm:text-sm font-medium text-gray-600">
-                                    Size {index + 1}{weight.color ? ` · ${weight.color}` : ""}
-                                </span>
-                                <div className="flex items-center gap-3">
-                                    {colors.length > 0 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => duplicateWeight(index)}
-                                            title="Copy this size for another color"
-                                            className="flex items-center gap-1 text-[11px] sm:text-xs text-emerald-600 hover:text-emerald-700"
-                                        >
-                                            <FiCopy className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Copy for another color
-                                        </button>
-                                    )}
-                                    {weights.length > 1 && (
-                                        <button 
-                                            type="button" 
-                                            onClick={() => removeWeight(index)}
-                                            className="text-red-500 hover:text-red-600"
-                                        >
-                                            <FiTrash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                            <div className={`grid grid-cols-1 ${colors.length > 0 ? "md:grid-cols-4" : "md:grid-cols-3"} gap-2 sm:gap-3 lg:gap-4 mb-2 sm:mb-3`}>
-                                {colors.length > 0 && (
-                                    <div>
-                                        <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Color</label>
-                                        <select
-                                            value={weight.color}
-                                            onChange={(e) => updateWeight(index, "color", e.target.value)}
-                                            required
-                                            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-700 text-xs sm:text-sm bg-white"
-                                        >
-                                            <option value="">Select color</option>
-                                            {colors.map((c) => (
-                                                <option key={c.name} value={c.name}>{c.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                )}
-                                <div>
-                                    <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Size</label>
-                                    <input 
-                                        type="text" 
-                                        value={weight.weight}
-                                        onChange={(e) => updateWeight(index, "weight", e.target.value)}
-                                        required
-                                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-700 text-xs sm:text-sm" 
-                                        placeholder="e.g. M, L, XL" 
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Stock</label>
-                                    <input 
-                                        type="number" 
-                                        value={weight.stock}
-                                        onChange={(e) => updateWeight(index, "stock", e.target.value)}
-                                        required
-                                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-700 text-xs sm:text-sm" 
-                                        placeholder="100" 
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Price</label>
-                                    <input
-                                        type="number"
-                                        value={weight.price}
-                                        onChange={(e) => updateWeight(index, "price", e.target.value)}
-                                        required
-                                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-700 text-xs sm:text-sm"
-                                        placeholder="850"
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-3 lg:gap-4 mb-2 sm:mb-3">
-                                <div>
-                                    <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Cost Price</label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={weight.costPrice}
-                                        onChange={(e) => updateWeight(index, "costPrice", e.target.value)}
-                                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-700 text-xs sm:text-sm"
-                                        placeholder="for profit reports"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">SKU</label>
-                                    <input
-                                        type="text"
-                                        value={weight.sku}
-                                        onChange={(e) => updateWeight(index, "sku", e.target.value)}
-                                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-700 text-xs sm:text-sm"
-                                        placeholder="auto-generated if blank"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Barcode</label>
-                                    <div className="flex gap-1.5">
-                                        <input
-                                            type="text"
-                                            value={weight.barcode}
-                                            onChange={(e) => updateWeight(index, "barcode", e.target.value)}
-                                            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-700 text-xs sm:text-sm"
-                                            placeholder="auto-generated if blank"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => updateWeight(index, "barcode", genBarcodePreview(index))}
-                                            title="Generate a barcode now"
-                                            className="shrink-0 px-2.5 rounded-lg bg-emerald-50 text-emerald-700 text-[10px] sm:text-xs font-semibold hover:bg-emerald-100"
-                                        >
-                                            Gen
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            {catalog.ready && !productMode && (
-                                <ProductImageManager
-                                    label={`Images for ${variantLabel(weight) || "this size"}`}
-                                    items={weight.images}
-                                    onChange={(next) => updateWeight(index, "images", next)}
-                                    max={10}
-                                    showCoverBadge={false}
-                                    compact
-                                    disabled={loading}
-                                />
-                            )}
-                        </div>
-                    ))}
-                </div>
+                <ProductSizesEditor
+                    rows={weights}
+                    setRows={setWeights}
+                    priceMode={priceMode}
+                    setPriceMode={setPriceMode}
+                    sharedPrice={sharedPrice}
+                    setSharedPrice={setSharedPrice}
+                    sharedCost={sharedCost}
+                    setSharedCost={setSharedCost}
+                    showPhotos={catalog.ready && !productMode}
+                    disabled={loading}
+                />
 
                 <div>
                     <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Description</label>

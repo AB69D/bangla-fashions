@@ -1,5 +1,5 @@
 import OrderModel from "../models/order.model.js";
-import ProductModel, { variantLabel } from "../models/product.model.js";
+import ProductModel from "../models/product.model.js";
 import { recordStockMovements, applyStockDeltas, actorFromReq } from "../lib/stockLedger.js";
 import { sendOrderStatusEmail } from "../lib/orderEmail.js";
 
@@ -272,7 +272,6 @@ export const getStockReportController = async (request, response) => {
                 totalValue += stock * w.price;
                 return {
                     weight: w.weight,
-                    color: w.color || '',
                     stock: stock,
                     price: w.price,
                     weightIndex: index
@@ -367,7 +366,7 @@ export const updateStockController = async (request, response) => {
                 productId,
                 productName: `${product.firstName || ''}${product.lastName ? ` ${product.lastName}` : ''}`.trim(),
                 weightIndex: Number(weightIndex),
-                weight: variantLabel(variant),
+                weight: variant.weight || '',
                 delta: stockChange,
                 balanceAfter: currentStock + stockChange,
             }],

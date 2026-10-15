@@ -10,7 +10,7 @@
 // so it is created already delivered/paid with no delivery charge.
 // ---------------------------------------------------------------
 import OrderModel from '../models/order.model.js';
-import ProductModel, { variantLabel } from '../models/product.model.js';
+import ProductModel from '../models/product.model.js';
 import CouponModel from '../models/coupon.model.js';
 import ShiftModel from '../models/shift.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -77,8 +77,7 @@ export const getPosProducts = asyncHandler(async (req, res) => {
         categoryId: p.category?._id ? String(p.category._id) : null,
         variants: (p.weights || []).map((w, index) => ({
             weightIndex: index,
-            weight: variantLabel(w),
-            color: w.color || '',
+            weight: w.weight,
             stock: w.stock || 0,
             price: Number(w.price) || 0,
             discountPercent: Number(w.discountPercent) || 0,
@@ -127,8 +126,7 @@ export const lookupByCode = asyncHandler(async (req, res) => {
             categoryId: product.category?._id ? String(product.category._id) : null,
             variant: {
                 weightIndex: idx,
-                weight: variantLabel(w),
-                color: w.color || '',
+                weight: w.weight,
                 stock: w.stock || 0,
                 price: Number(w.price) || 0,
                 discountPercent: Number(w.discountPercent) || 0,
@@ -204,7 +202,7 @@ export const createPosSale = asyncHandler(async (req, res) => {
         const quantity = Math.max(1, parseInt(item.quantity, 10) || 0);
         if ((w.stock || 0) < quantity) {
             throw ApiError.conflict(
-                `Not enough stock for ${productDisplayName(product)} (${variantLabel(w)}). Only ${w.stock || 0} left.`,
+                `Not enough stock for ${productDisplayName(product)} (${w.weight}). Only ${w.stock || 0} left.`,
             );
         }
 
@@ -224,7 +222,7 @@ export const createPosSale = asyncHandler(async (req, res) => {
             productName: productDisplayName(product),
             productImage: (Array.isArray(w.images) && w.images[0]) || product.cover_image || '',
             quantity,
-            weight: variantLabel(w),
+            weight: w.weight,
             weightIndex: idx,
             price: unitPrice,
             totalPrice: Math.round(unitPrice * quantity * 100) / 100,

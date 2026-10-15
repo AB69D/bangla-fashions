@@ -22,6 +22,12 @@ const orderItemSchema = new Schema({
         type: String,
         default: ''
     },
+    // The colour the shopper picked ('' for products without colours and for
+    // POS sales). `weight` above already reads "M / Red"; this is the bare value.
+    color: {
+        type: String,
+        default: ''
+    },
     price: {
         type: Number,
         required: true

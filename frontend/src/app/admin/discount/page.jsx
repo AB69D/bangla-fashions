@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { FiPercent, FiEdit2, FiX, FiCheck } from "react-icons/fi";
 import { useCurrency } from "@/context/CurrencyContext.jsx";
 import { useAdminAuth } from "@/context/AdminAuthContext";
-import { variantLabel } from "@/lib/productVariants";
 
 export default function DiscountPage() {
     const { symbol } = useCurrency();
@@ -138,7 +137,7 @@ export default function DiscountPage() {
                                     }`}
                                 >
                                     <div>
-                                        <p className="font-medium text-gray-800">{variantLabel(weight)}</p>
+                                        <p className="font-medium text-gray-800">{weight.weight}</p>
                                         <div className="flex items-center gap-2">
                                             {weight.discountPercent > 0 ? (
                                                 <>
@@ -194,7 +193,7 @@ export default function DiscountPage() {
                             </p>
                             <p className="text-sm text-gray-600">
                                 Weight: <span className="font-medium">
-                                    {variantLabel(editingProduct.weights[editingWeightIndex])}
+                                    {editingProduct.weights[editingWeightIndex]?.weight}
                                 </span>
                             </p>
                         </div>

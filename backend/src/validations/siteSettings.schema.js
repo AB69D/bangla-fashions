@@ -189,7 +189,7 @@ export const updateSiteSettingsSchema = z.object({
     faviconUrl: imageUrl.optional(),
     contactEmail: z.string().email().or(z.literal('')).optional(),
     // Holds several numbers, comma separated; the stored default is three of
-    // them (53 characters), so a 50 limit made every settings save fail.
+    // them (52 characters), so a 50 limit made every settings save fail.
     contactPhone: z.string().max(200).optional(),
     contactAddress: z.string().max(500).optional(),
     socialLinks: z.array(socialLink).optional(),

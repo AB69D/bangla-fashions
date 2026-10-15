@@ -6,6 +6,7 @@ import { z } from 'zod';
 const cartItem = z.object({
     productId: z.string().max(64),
     weightIndex: z.coerce.number().int().nonnegative().optional(),
+    color: z.string().max(30).optional(),
     quantity: z.coerce.number().int().optional(),
 }).passthrough();
 
@@ -29,6 +30,7 @@ const action = z.object({
     type: z.string().max(40),
     productId: z.string().max(64).optional(),
     weightIndex: z.coerce.number().int().optional(),
+    color: z.string().max(30).optional(),
     quantity: z.coerce.number().int().optional(),
     categoryId: z.string().max(64).optional(),
     query: z.string().max(200).optional(),

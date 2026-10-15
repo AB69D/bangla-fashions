@@ -71,7 +71,7 @@ function OrdersInner() {
         try {
             for (const item of order.items || []) {
                 // eslint-disable-next-line no-await-in-loop
-                await addToCart(item.productId, item.quantity, item.weight, item.weightIndex || 0, item.price, 0);
+                await addToCart(item.productId, item.quantity, item.weight, item.weightIndex || 0, item.price, 0, '', '', item.color || '');
             }
             if (typeof window !== "undefined") window.dispatchEvent(new Event("cart-updated"));
             router.push("/cart");

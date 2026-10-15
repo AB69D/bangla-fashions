@@ -14,8 +14,7 @@ import ProductImageManager, {
     MAX_FILES_PER_REQUEST,
     MAX_IMAGE_SIZES,
 } from "@/components/admin/ProductImageManager";
-import ProductColorsEditor, { reconcileVariantColors, findDuplicateVariant } from "@/components/admin/ProductColorsEditor";
-import { variantLabel } from "@/lib/productVariants";
+import ProductColorsEditor from "@/components/admin/ProductColorsEditor";
 
 // Mirror of the backend GS1 (prefix 2) barcode generator for in-form previews.
 const genBarcodePreview = (index = 0) => {
@@ -62,6 +61,9 @@ export default function AllProductsPage() {
     const [editShowEcom, setEditShowEcom] = useState(true);
     const [editWeights, setEditWeights] = useState([]);
     const [editColors, setEditColors] = useState([]);
+    // "Same price for all sizes" helper: one price typed once, applied to every row.
+    const [bulkPrice, setBulkPrice] = useState("");
+    const [bulkCost, setBulkCost] = useState("");
     // Image state for the open edit modal. Both layouts are loaded so the one the
     // store uses is ready; the other layout's data is never sent (see handleEdit).
     const [editGallery, setEditGallery] = useState([]);
@@ -96,7 +98,6 @@ export default function AllProductsPage() {
         setEditWeights(
             (product.weights || []).map((w) => ({
                 weight: w.weight ?? "",
-                color: w.color ?? "",
                 stock: w.stock ?? "",
                 price: w.price ?? "",
                 costPrice: w.costPrice ?? "",
@@ -106,7 +107,9 @@ export default function AllProductsPage() {
                 images: itemsFromUrls(w.images),
             })),
         );
-        setEditColors((product.colors || []).map((c) => ({ name: c.name, hex: c.hex || "" })));
+        setEditColors((product.colors || []).map((c) => ({ name: c.name, hex: c.hex || "", available: c.available !== false })));
+        setBulkPrice("");
+        setBulkCost("");
         setEditModal({ show: true, product });
     };
 
@@ -114,9 +117,15 @@ export default function AllProductsPage() {
         setEditWeights((prev) => prev.map((w, i) => (i === index ? { ...w, [field]: value } : w)));
     };
 
-    const handleEditColorsChange = (next) => {
-        setEditColors(next);
-        setEditWeights((prev) => reconcileVariantColors(prev, next));
+    const applyBulkPrice = () => {
+        const price = bulkPrice.trim();
+        const cost = bulkCost.trim();
+        if (!price && !cost) return;
+        setEditWeights((prev) => prev.map((w) => ({
+            ...w,
+            ...(price ? { price } : {}),
+            ...(cost ? { costPrice: cost } : {}),
+        })));
     };
 
     // Variants are addressed by position everywhere (carts, orders, stock history),
@@ -127,7 +136,7 @@ export default function AllProductsPage() {
         newRowSeq.current += 1;
         setEditWeights((prev) => [
             ...prev,
-            { _new: true, _key: `new-${newRowSeq.current}`, weight: "", color: "", stock: "", price: "", costPrice: "", discountPercent: 0, sku: "", barcode: "", images: [] },
+            { _new: true, _key: `new-${newRowSeq.current}`, weight: "", stock: "", price: "", costPrice: "", discountPercent: 0, sku: "", barcode: "", images: [] },
         ]);
     };
     const removeNewEditWeight = (index) => {
@@ -233,18 +242,6 @@ export default function AllProductsPage() {
             setEditError(`New photos can only be added to the first ${MAX_IMAGE_SIZES} size rows.`);
             return;
         }
-        if (editColors.length > 0) {
-            const missing = editWeights.findIndex((w) => !w.color);
-            if (missing !== -1) {
-                setEditError(`Choose a color for variant ${missing + 1}, or remove the colors above.`);
-                return;
-            }
-            const dup = findDuplicateVariant(editWeights);
-            if (dup) {
-                setEditError(`${dup} is listed twice. Each size needs one row per color.`);
-                return;
-            }
-        }
 
         // Multipart, because new photos are files. The server deletes any image
         // file this product had that is missing from what we send, so:
@@ -264,7 +261,6 @@ export default function AllProductsPage() {
         const weightsPayload = editWeights.map((w, index) => {
             const out = {
                 weight: w.weight,
-                color: w.color,
                 stock: parseInt(w.stock) || 0,
                 price: parseFloat(w.price) || 0,
                 costPrice: parseFloat(w.costPrice) || 0,
@@ -581,39 +577,39 @@ export default function AllProductsPage() {
                                 )}
                             </div>
                             <div className="mb-4">
-                                <ProductColorsEditor
-                                    colors={editColors}
-                                    onChange={handleEditColorsChange}
-                                    lockedNames={editWeights.filter((w) => !w._new).map((w) => w.color).filter(Boolean)}
-                                    disabled={editSaving}
-                                />
+                                <ProductColorsEditor colors={editColors} onChange={setEditColors} disabled={editSaving} />
                             </div>
                             {editWeights.length > 0 && (
                                 <div className="mb-4 border-t pt-4">
-                                    <h4 className="text-sm font-semibold text-gray-800 mb-3">{productMode ? "Variants · Stock, SKU & Barcode" : "Variants · Stock, SKU, Barcode & Photos"}</h4>
+                                    <h4 className="text-sm font-semibold text-gray-800 mb-3">{productMode ? "Sizes · Stock, Price, SKU & Barcode" : "Sizes · Stock, Price, SKU, Barcode & Photos"}</h4>
+                                    {editWeights.length > 1 && (
+                                        <div className="mb-3 p-3 bg-emerald-50/60 border border-emerald-100 rounded-lg">
+                                            <p className="text-xs font-medium text-gray-700 mb-2">Same price for all sizes <span className="font-normal text-gray-500">(optional, or set each size below)</span></p>
+                                            <div className="flex flex-wrap items-end gap-2">
+                                                <div className="w-28">
+                                                    <label className="block text-[10px] text-gray-500 mb-1">Price</label>
+                                                    <input type="number" min="0" value={bulkPrice} onChange={(e) => setBulkPrice(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white" placeholder="850" />
+                                                </div>
+                                                <div className="w-28">
+                                                    <label className="block text-[10px] text-gray-500 mb-1">Cost</label>
+                                                    <input type="number" min="0" step="0.01" value={bulkCost} onChange={(e) => setBulkCost(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white" placeholder="optional" />
+                                                </div>
+                                                <button type="button" onClick={applyBulkPrice} disabled={editSaving || (!bulkPrice.trim() && !bulkCost.trim())} className="h-[34px] px-3 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">Apply to all sizes</button>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="space-y-3">
                                         {editWeights.map((w, index) => (
                                             <div key={w._key ?? index} className="bg-gray-50 border rounded-lg p-3">
                                                 {w._new && (
                                                     <div className="flex items-center justify-between mb-2">
-                                                        <span className="text-xs font-medium text-gray-600">New variant</span>
-                                                        <button type="button" onClick={() => removeNewEditWeight(index)} disabled={editSaving} className="text-red-500 hover:text-red-600 disabled:opacity-50" aria-label="Remove this new variant">
+                                                        <span className="text-xs font-medium text-gray-600">New size</span>
+                                                        <button type="button" onClick={() => removeNewEditWeight(index)} disabled={editSaving} className="text-red-500 hover:text-red-600 disabled:opacity-50" aria-label="Remove this new size">
                                                             <FiTrash2 className="w-4 h-4" />
                                                         </button>
                                                     </div>
                                                 )}
-                                                <div className={`grid grid-cols-2 ${editColors.length > 0 ? "md:grid-cols-5" : "md:grid-cols-4"} gap-2 mb-2`}>
-                                                    {editColors.length > 0 && (
-                                                        <div>
-                                                            <label className="block text-[10px] text-gray-500 mb-1">Color</label>
-                                                            <select value={w.color} onChange={(e) => updateEditWeight(index, "color", e.target.value)} required className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
-                                                                <option value="">Select color</option>
-                                                                {editColors.map((c) => (
-                                                                    <option key={c.name} value={c.name}>{c.name}</option>
-                                                                ))}
-                                                            </select>
-                                                        </div>
-                                                    )}
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
                                                     <div>
                                                         <label className="block text-[10px] text-gray-500 mb-1">Weight</label>
                                                         <input type="text" value={w.weight} onChange={(e) => updateEditWeight(index, "weight", e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
@@ -647,7 +643,7 @@ export default function AllProductsPage() {
                                                 {catalog.ready && !productMode && (
                                                     <ProductImageManager
                                                         className="mt-3"
-                                                        label={`Images for ${variantLabel(w) || "this size"}`}
+                                                        label={`Images for ${w.weight || "this size"}`}
                                                         items={w.images}
                                                         onChange={(next) => updateEditWeight(index, "images", next)}
                                                         max={10}
@@ -660,9 +656,9 @@ export default function AllProductsPage() {
                                         ))}
                                     </div>
                                     <button type="button" onClick={addEditWeight} disabled={editSaving} className="mt-3 flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700 disabled:opacity-50">
-                                        <FiPlus className="w-4 h-4" /> Add size / color
+                                        <FiPlus className="w-4 h-4" /> Add size
                                     </button>
-                                    <p className="text-[11px] text-gray-400 mt-2">Leave SKU / barcode blank to auto-generate a scannable code on save. Saved variants can&apos;t be removed here, because carts, orders and stock history refer to them.</p>
+                                    <p className="text-[11px] text-gray-400 mt-2">Leave SKU / barcode blank to auto-generate a scannable code on save. Saved sizes can&apos;t be removed here, because carts, orders and stock history refer to them.</p>
                                 </div>
                             )}
 

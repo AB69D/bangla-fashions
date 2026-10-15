@@ -1,7 +1,8 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FiCheck } from "react-icons/fi";
 import { useCurrency } from "@/context/CurrencyContext.jsx";
+import { getColors, firstAvailableColor } from "@/lib/productVariants";
 
 // Same delivery-area list/charges checkout/page.jsx hardcodes, used whenever
 // the admin didn't configure `deliveryAreas` on this block.
@@ -52,6 +53,30 @@ export default function OrderFormBlock({ data }) {
     const [error, setError] = useState("");
     const [orderData, setOrderData] = useState(null);
 
+    // A product sold in colours needs one picked or the order can't be fulfilled.
+    // The block only stores the product id, so the colours are read from the
+    // product itself; a product without colours shows no picker at all.
+    const [colors, setColors] = useState([]);
+    const [color, setColor] = useState("");
+    useEffect(() => {
+        if (!productId) return undefined;
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch(`/api/client/product/product/${productId}`);
+                const json = await res.json();
+                if (cancelled || !json.success) return;
+                setColors(getColors(json.data));
+                setColor(firstAvailableColor(json.data));
+            } catch {
+                // No picker: the server still refuses a coloured product without a colour.
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [productId]);
+
     // Generated once and reused across a retried/double-tapped submit (same
     // pattern as checkout/page.jsx's idempotencyKeyRef) so a network retry
     // can't create a duplicate order — the server returns the original instead.
@@ -89,7 +114,7 @@ export default function OrderFormBlock({ data }) {
             const addRes = await fetch(`/api/client/cart/add`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "guest-id": guestId },
-                body: JSON.stringify({ productId, quantity: 1, weightIndex }),
+                body: JSON.stringify({ productId, quantity: 1, weightIndex, color }),
             });
             const addData = await addRes.json();
             if (!addRes.ok || !addData.success) {
@@ -168,6 +193,25 @@ export default function OrderFormBlock({ data }) {
                 {productName && <p className="text-gray-500 mb-5">{productName}</p>}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    {colors.length > 0 && (
+                        <div>
+                            <label htmlFor="lp-color" className="block text-sm font-medium text-gray-700 mb-1">Color *</label>
+                            <select
+                                id="lp-color"
+                                value={color}
+                                onChange={(e) => setColor(e.target.value)}
+                                required
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition bg-white"
+                            >
+                                <option value="">Choose a color</option>
+                                {colors.map((c) => (
+                                    <option key={c.name} value={c.name} disabled={!c.available}>
+                                        {c.name}{c.available ? "" : " (sold out)"}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
                         <input
