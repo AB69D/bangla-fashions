@@ -41,6 +41,15 @@ const existingImageUrls = (product) => {
     return out;
 };
 
+// Every photo the product already has (cover, gallery, size and colour photos),
+// offered in the colour cards as one-tap picks.
+const productPhotoUrls = (product) => [
+    ...new Set(
+        [product.cover_image, ...(product.gallery || []), ...(product.weights || []).flatMap((w) => w.images || []), ...(product.colors || []).flatMap((c) => c.images || [])]
+            .filter((u) => typeof u === "string" && u),
+    ),
+];
+
 // List thumbnail: legacy per-size products may have no cover at all.
 const listImage = (product) => product.cover_image || product.gallery?.[0] || existingImageUrls(product)[0] || "";
 
@@ -589,7 +598,7 @@ export default function AllProductsPage() {
                                 )}
                             </div>
                             <div className="mb-4">
-                                <ProductColorsEditor colors={editColors} onChange={setEditColors} disabled={editSaving} />
+                                <ProductColorsEditor colors={editColors} onChange={setEditColors} disabled={editSaving} productPhotos={productPhotoUrls(editModal.product)} />
                             </div>
                             {editWeights.length > 0 && (
                                 <div className="mb-4 border-t pt-4">

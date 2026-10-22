@@ -1,5 +1,6 @@
 // `contactPhone` is one admin free-text field that may hold several numbers,
-// comma separated ("+880 1911-700793, +880 1601-383683"). These two helpers are
+// separated by commas, slashes, semicolons, bars or new lines
+// ("+880 1911-700793, +880 1601-383683" or "+880 1911-700793/+880 1643-480565"). These two helpers are
 // the only place the storefront turns that field into something dialable, so
 // every tel: link on the site comes out the same shape.
 
@@ -7,7 +8,7 @@
 // comma. The first entry is the number the "Call to Order" buttons ring.
 export const splitPhones = (value) =>
     String(value || "")
-        .split(",")
+        .split(/[,/;|\n]+/)
         .map((p) => p.trim())
         .filter(Boolean);
 

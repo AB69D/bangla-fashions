@@ -487,7 +487,7 @@ function TrackOrderContent() {
                                         </div>
                                         <div className="flex-1">
                                             <p className="font-medium text-gray-800">{item.productName}</p>
-                                            <p className="text-sm text-gray-500">Qty: {item.quantity} x {symbol}{item.price}</p>
+                                            <p className="text-sm text-gray-500">{item.weight ? `${item.weight} · ` : ""}Qty: {item.quantity} x {symbol}{item.price}</p>
                                             <p className="font-bold">{symbol}{item.totalPrice}</p>
                                         </div>
                                     </div>

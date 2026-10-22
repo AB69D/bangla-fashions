@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
-import { FiPlus, FiTrash2 } from "react-icons/fi";
-import ProductImageManager, { appendImagesToFormData, countNewFiles, itemsFromUrls } from "@/components/admin/ProductImageManager";
+import { FiPlus, FiTrash2, FiDroplet } from "react-icons/fi";
+import ProductImageManager, { appendImagesToFormData, countNewFiles, itemsFromUrls, urlItem } from "@/components/admin/ProductImageManager";
 
 // Product form section where the admin lists the colors a product is sold in.
 // Colors are independent of the sizes: the storefront shows them as swatches and
@@ -15,6 +15,12 @@ import ProductImageManager, { appendImagesToFormData, countNewFiles, itemsFromUr
 // color living outside the list that Save could miss. Before saving, the form
 // runs prepareColorsForSave() to drop untouched empty cards and to stop on a
 // card that has photos but no name.
+//
+// In the edit form `productPhotos` lists the photos the product already has
+// (cover, gallery, size and colour photos). Each card offers them as one-tap
+// picks, so a colour can use a photo that is already uploaded instead of the
+// admin uploading it again. "Match photo colour" sets the swatch from the
+// colour's first photo, so the swatch a shopper taps looks like the garment.
 //
 // `onChange` must accept an updater function (a React state setter does): cards
 // update themselves from the latest list, so a photo that finishes preparing
@@ -107,9 +113,36 @@ export const colorsPayload = (formData, colors) =>
 
 export const countNewColorFiles = (colors) => colors.reduce((sum, c) => sum + countNewFiles(c.images), 0);
 
-export default function ProductColorsEditor({ colors, onChange, disabled = false, showPhotos = true }) {
+const MAX_PHOTOS_PER_COLOR = 10;
+const srcOf = (item) => (item.kind === "file" ? item.preview : item.url);
+
+// The fabric colour of a product photo: the per-channel median of the middle of
+// the picture, where the folded garment is, so the background and a small print
+// pattern do not tint it.
+async function photoColor(src) {
+    const img = new Image();
+    img.src = src;
+    await img.decode();
+    const W = 60;
+    const H = 80;
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, W, H);
+    const { data } = ctx.getImageData(Math.floor(W * 0.3), Math.floor(H * 0.3), Math.floor(W * 0.4), Math.floor(H * 0.45));
+    const channels = [[], [], []];
+    for (let i = 0; i < data.length; i += 4) for (let c = 0; c < 3; c += 1) channels[c].push(data[i + c]);
+    const median = (values) => values.sort((a, b) => a - b)[values.length >> 1];
+    return `#${channels.map((values) => median(values).toString(16).padStart(2, "0")).join("")}`;
+}
+
+export default function ProductColorsEditor({ colors, onChange, disabled = false, showPhotos = true, productPhotos = [] }) {
     // The card just added, whose name field should take the focus.
     const [focusKey, setFocusKey] = useState(null);
+    // Card whose swatch is being read from its photo, and the card that failed.
+    const [matching, setMatching] = useState(null);
+    const [matchError, setMatchError] = useState(null);
 
     const update = (key, patch) =>
         onChange((prev) => prev.map((c) => (c._key === key ? { ...c, ...(typeof patch === "function" ? patch(c) : patch) } : c)));
@@ -132,6 +165,28 @@ export default function ProductColorsEditor({ colors, onChange, disabled = false
             const guess = COMMON_SWATCHES[cleanName(value).toLowerCase()];
             return { name: value, ...(!c.hexByHand && guess ? { hex: guess } : {}) };
         });
+
+    const pickPhoto = (key, url) =>
+        update(key, (c) => {
+            const images = c.images || [];
+            if (images.length >= MAX_PHOTOS_PER_COLOR || images.some((i) => i.kind === "url" && i.url === url)) return {};
+            return { images: [...images, urlItem(url)] };
+        });
+
+    const matchSwatch = async (c) => {
+        const first = (c.images || [])[0];
+        if (!first) return;
+        setMatching(c._key);
+        setMatchError(null);
+        try {
+            const hex = await photoColor(srcOf(first));
+            update(c._key, { hex, hexByHand: true });
+        } catch {
+            setMatchError(c._key);
+        } finally {
+            setMatching(null);
+        }
+    };
 
     // Same name typed twice: flagged on the card as soon as it happens.
     const duplicate = (c) => cleanName(c.name) && colors.some((o) => o._key !== c._key && sameName(o.name, c.name));
@@ -215,6 +270,22 @@ export default function ProductColorsEditor({ colors, onChange, disabled = false
                                     </button>
                                 </div>
                                 {dup && <p role="alert" className="mt-1.5 ml-7 text-[11px] text-red-600">This color is already in the list.</p>}
+                                {(c.images || []).length > 0 && (
+                                    <div className="mt-2 ml-7 flex flex-wrap items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => matchSwatch(c)}
+                                            disabled={disabled || matching === c._key}
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 text-gray-700 text-[11px] sm:text-xs font-semibold hover:bg-gray-200 disabled:opacity-50"
+                                        >
+                                            <FiDroplet className="w-3.5 h-3.5" />
+                                            {matching === c._key ? "Reading photo..." : "Match swatch to photo"}
+                                        </button>
+                                        {matchError === c._key && (
+                                            <span role="alert" className="text-[11px] text-red-600">Could not read the photo. Pick the swatch by hand.</span>
+                                        )}
+                                    </div>
+                                )}
                                 {showPhotos && (
                                     <ProductImageManager
                                         className="mt-3"
@@ -227,6 +298,35 @@ export default function ProductColorsEditor({ colors, onChange, disabled = false
                                         disabled={disabled}
                                     />
                                 )}
+                                {showPhotos && (() => {
+                                    const used = new Set((c.images || []).filter((i) => i.kind === "url").map((i) => i.url));
+                                    const offer = productPhotos.filter((url) => !used.has(url));
+                                    const full = (c.images || []).length >= MAX_PHOTOS_PER_COLOR;
+                                    if (!offer.length || full) return null;
+                                    return (
+                                        <div className="mt-2.5">
+                                            <p className="text-[11px] sm:text-xs text-gray-500 mb-1.5">
+                                                Or tap one of this product&apos;s photos to use it for {name || "this color"}:
+                                            </p>
+                                            <div className="flex gap-2 overflow-x-auto pb-1">
+                                                {offer.map((url) => (
+                                                    <button
+                                                        key={url}
+                                                        type="button"
+                                                        onClick={() => pickPhoto(c._key, url)}
+                                                        disabled={disabled}
+                                                        aria-label={`Use this photo for ${name || "this color"}`}
+                                                        className="relative shrink-0 w-14 h-[70px] rounded-lg overflow-hidden border border-gray-200 bg-white hover:ring-2 hover:ring-emerald-500 disabled:opacity-50"
+                                                    >
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img src={url} alt="" loading="lazy" className="w-full h-full object-contain" />
+                                                        <span className="absolute bottom-0 inset-x-0 bg-emerald-600/90 text-white text-[9px] font-semibold leading-4 text-center">+ Use</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </li>
                         );
                     })}
