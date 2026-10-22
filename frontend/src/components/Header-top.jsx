@@ -11,9 +11,10 @@ export default function HeaderTop() {
     // The POS terminal is a self-contained full-screen app — no storefront chrome.
     if (pathname?.startsWith("/pos")) return null;
 
-    // contactPhone can hold several numbers; the bar shows and dials the first.
-    const phone = splitPhones(wa.contactPhone)[0] || "";
-    const showCall = Boolean(telHref(phone));
+    // contactPhone can hold several numbers. The bar shows every one of them,
+    // each its own call link, so a shopper can ring whichever line they like.
+    const phones = splitPhones(wa.contactPhone).filter((p) => telHref(p));
+    const showCall = phones.length > 0;
     const showWhatsApp = wa.enabled;
 
     // Nothing to show until the admin sets a contact phone and/or enables WhatsApp.
@@ -28,13 +29,19 @@ export default function HeaderTop() {
                     </p>
                     <div className="flex items-center gap-4 sm:gap-6">
                         {showCall && (
-                            <a
-                                href={telHref(phone)}
-                                className="flex items-center gap-1.5 text-white hover:text-green-400 transition-colors"
-                            >
-                                <FaPhoneAlt className="text-sm text-green-500" />
-                                <p className="text-xs sm:text-sm font-medium">{phone}</p>
-                            </a>
+                            <div className="flex items-center gap-1.5 text-white">
+                                <FaPhoneAlt className="text-sm text-green-500 shrink-0" />
+                                <p className="text-xs sm:text-sm font-medium">
+                                    {phones.map((phone, i) => (
+                                        <span key={phone}>
+                                            {i > 0 && <span className="text-white/50"> / </span>}
+                                            <a href={telHref(phone)} className="hover:text-green-400 transition-colors whitespace-nowrap">
+                                                {phone}
+                                            </a>
+                                        </span>
+                                    ))}
+                                </p>
+                            </div>
                         )}
                         {showWhatsApp && (
                             <a
