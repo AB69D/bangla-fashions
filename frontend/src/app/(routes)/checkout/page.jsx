@@ -618,7 +618,7 @@ export default function CheckoutPage() {
                                 <div key={item._id} className="flex gap-3">
                                     <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                                         {item.productImage ? (
-                                            <img src={item.productImage} alt={item.productName} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                                            <img src={item.productImage} alt={item.productName} loading="lazy" decoding="async" className="w-full h-full object-contain" />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No Image</div>
                                         )}

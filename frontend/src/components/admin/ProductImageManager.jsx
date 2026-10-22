@@ -277,7 +277,7 @@ export default function ProductImageManager({
                                         src={src}
                                         alt={`${label || "Product image"} ${index + 1}`}
                                         draggable={false}
-                                        className="w-full h-full object-cover select-none"
+                                        className="w-full h-full object-contain select-none"
                                     />
 
                                     <div className="absolute top-1 left-1 flex flex-col items-start gap-1 pointer-events-none">

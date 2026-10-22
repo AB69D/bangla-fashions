@@ -123,7 +123,7 @@ export default function WishlistPage() {
                             key={it.productId}
                             className="group bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 flex flex-col"
                         >
-                            <Link href={`/product/${it.productId}`} className="relative block aspect-square bg-gray-100 overflow-hidden">
+                            <Link href={`/product/${it.productId}`} className="relative block aspect-[4/5] bg-gray-100 overflow-hidden">
                                 {it.productImage ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img
@@ -131,7 +131,7 @@ export default function WishlistPage() {
                                         alt={it.productName}
                                         loading="lazy"
                                         decoding="async"
-                                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                        className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
                                     />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">

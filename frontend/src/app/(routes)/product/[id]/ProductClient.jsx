@@ -144,10 +144,10 @@ export default function ProductClient({ productId }) {
         return () => io.disconnect();
     }, [product]);
 
-    // The photo the cart line should show: the picked variant's own (so a red
-    // dress sits in the cart as the red one), else the product cover.
+    // The photo the cart line should show: the picked colour's own (so a red
+    // dress sits in the cart as the red one), else the size's, else the cover.
     const cartImage = () =>
-        getProductImages(product, { mode: catalog.productImageMode, weightIndex: selectedWeight })[0] || getProductCover(product);
+        getProductImages(product, { mode: catalog.productImageMode, weightIndex: selectedWeight, color: selectedColor })[0] || getProductCover(product);
 
     const handleAddToCart = async () => {
         if (!product || !product.weights[selectedWeight]) return;
@@ -270,7 +270,7 @@ export default function ProductClient({ productId }) {
         return (
             <div className="w-full py-6 sm:py-8 px-4 max-w-7xl mx-auto">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 animate-pulse">
-                    <div className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl sm:rounded-3xl" />
+                    <div className="aspect-[4/5] bg-gray-100 dark:bg-gray-800 rounded-2xl sm:rounded-3xl" />
                     <div className="space-y-4">
                         <div className="h-4 w-24 bg-gray-100 dark:bg-gray-800 rounded" />
                         <div className="h-8 w-3/4 bg-gray-100 dark:bg-gray-800 rounded" />
@@ -317,9 +317,10 @@ export default function ProductClient({ productId }) {
     }
 
     const currentWeight = product.weights?.[selectedWeight];
-    // Which photos to show depends on the store-wide image mode: in "variant"
-    // mode they follow the selected size, in "product" mode it is one gallery.
-    const galleryImages = getProductImages(product, { mode: catalog.productImageMode, weightIndex: selectedWeight });
+    // The picked colour's own photos win. Without them it depends on the
+    // store-wide image mode: in "variant" mode they follow the selected size, in
+    // "product" mode it is one gallery.
+    const galleryImages = getProductImages(product, { mode: catalog.productImageMode, weightIndex: selectedWeight, color: selectedColor });
     const hasDiscount = currentWeight?.discountPercent > 0;
     const unitPrice = currentWeight ? currentWeight.price - (currentWeight.price * (currentWeight.discountPercent || 0) / 100) : 0;
     const inStock = variantInStock(currentWeight);
@@ -358,7 +359,7 @@ export default function ProductClient({ productId }) {
                     ) : (
                         // Settings decide which photos belong here; wait for them
                         // rather than flash the wrong set.
-                        <div className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl sm:rounded-3xl mb-3 sm:mb-4 animate-pulse" />
+                        <div className="aspect-[4/5] bg-gray-100 dark:bg-gray-800 rounded-2xl sm:rounded-3xl mb-3 sm:mb-4 animate-pulse" />
                     )}
                 </div>
 
@@ -495,7 +496,7 @@ export default function ProductClient({ productId }) {
                                             }`}
                                             style={isSelected && !isOut ? { background: "var(--theme-primary)", borderColor: "var(--theme-primary)" } : undefined}
                                         >
-                                            {weight.weight} · {symbol}{weight.price}
+                                            {weight.weight}
                                         </button>
                                     );
                                 })}
@@ -647,13 +648,13 @@ export default function ProductClient({ productId }) {
                                              href={`/product/${item._id}`}
                                              className="card-hover group border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-gray-900"
                                          >
-                                             <div className="aspect-square bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                                             <div className="aspect-[4/5] bg-gray-100 dark:bg-gray-800 overflow-hidden">
                                                  <img
                                                      src={getProductCover(item) || '/logo.png'}
                                                      alt={item.firstName}
                                                      loading="lazy"
                                                      decoding="async"
-                                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                     className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                                                  />
                                              </div>
                                              <div className="p-3">

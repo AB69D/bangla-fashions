@@ -163,14 +163,14 @@ export default function TopSelling() {
                                 onMouseLeave={() => setHoveredProduct(null)}
                                 className="card-hover bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 cursor-pointer"
                             >
-                                <div className="relative aspect-square bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                                <div className="relative aspect-[4/5] bg-gray-100 dark:bg-gray-800 overflow-hidden">
                                     {productImage ? (
                                         <img
                                             src={productImage}
                                             alt={product.firstName}
                                             loading="lazy"
                                             decoding="async"
-                                            className={`w-full h-full object-cover transition-transform duration-500 ${hoveredProduct === product._id ? 'scale-110' : ''}`}
+                                            className={`w-full h-full object-contain transition-transform duration-500 ${hoveredProduct === product._id ? 'scale-110' : ''}`}
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">

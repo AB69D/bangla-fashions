@@ -126,7 +126,7 @@ export default function CartDrawer() {
                                     <li key={item._id} className="flex gap-3">
                                         <div className="w-16 h-16 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
                                             {item.productImage ? (
-                                                <img src={item.productImage} alt={item.productName} className="w-full h-full object-cover" />
+                                                <img src={item.productImage} alt={item.productName} className="w-full h-full object-contain" />
                                             ) : null}
                                         </div>
                                         <div className="flex-1 min-w-0">

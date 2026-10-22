@@ -10,7 +10,7 @@ import ProductImageManager, {
     MAX_FILES_PER_REQUEST,
     MAX_IMAGE_SIZES,
 } from "@/components/admin/ProductImageManager";
-import ProductColorsEditor from "@/components/admin/ProductColorsEditor";
+import ProductColorsEditor, { colorsPayload, countNewColorFiles } from "@/components/admin/ProductColorsEditor";
 import ProductSizesEditor, { findDuplicateSize } from "@/components/admin/ProductSizesEditor";
 
 export default function CreateProductPage() {
@@ -80,9 +80,9 @@ export default function CreateProductPage() {
         setMessage("");
 
         // Fail before uploading anything rather than as a server 400.
-        const newFiles = productMode
+        const newFiles = countNewColorFiles(colors) + (productMode
             ? countNewFiles(galleryItems)
-            : countNewFiles(coverItems) + weights.reduce((sum, w) => sum + countNewFiles(w.images), 0);
+            : countNewFiles(coverItems) + weights.reduce((sum, w) => sum + countNewFiles(w.images), 0));
         if (newFiles > MAX_FILES_PER_REQUEST) {
             showMessage(`Error: ${newFiles} photos selected, but at most ${MAX_FILES_PER_REQUEST} can be uploaded at once. Remove some and add them after saving.`);
             return;
@@ -114,7 +114,7 @@ export default function CreateProductPage() {
         formData.append("firstName", form.firstName.value);
         formData.append("lastName", form.lastName.value);
         formData.append("category", form.category.value);
-        formData.append("colors", JSON.stringify(colors));
+        formData.append("colors", JSON.stringify(colorsPayload(formData, colors)));
         formData.append("weights", JSON.stringify(weights.map(w => ({
             weight: w.weight,
             stock: parseInt(w.stock) || 0,

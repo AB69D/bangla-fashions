@@ -38,9 +38,9 @@ export default function RecentlyViewed({ excludeId, title = "Recently Viewed" })
                                 href={`/product/${p._id}`}
                                 className="card-hover flex-shrink-0 w-32 sm:w-36 border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-gray-900"
                             >
-                                <div className="aspect-square bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                                <div className="aspect-[4/5] bg-gray-100 dark:bg-gray-800 overflow-hidden">
                                     {p.cover_image && (
-                                        <img src={p.cover_image} alt={p.firstName} loading="lazy" className="w-full h-full object-cover" />
+                                        <img src={p.cover_image} alt={p.firstName} loading="lazy" className="w-full h-full object-contain" />
                                     )}
                                 </div>
                                 <div className="p-2.5">

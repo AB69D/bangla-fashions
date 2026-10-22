@@ -76,11 +76,11 @@ export default function QuickViewModal() {
 
     const product = full || summary;
     const currentWeight = product.weights?.[selectedWeight];
-    // Mode-aware: the picked size's photo in "variant" mode, the product's lead
-    // photo in "product" mode. Held back until settings load so the wrong photo
+    // The picked colour's photo, else mode-aware: the picked size's photo in
+    // "variant" mode, the product's lead photo in "product" mode. Held back until settings load so the wrong photo
     // never flashes (the modal is opened by a click, so this is rarely visible).
     const image = catalog.ready
-        ? getProductImages(product, { mode: catalog.productImageMode, weightIndex: selectedWeight })[0]
+        ? getProductImages(product, { mode: catalog.productImageMode, weightIndex: selectedWeight, color: selectedColor })[0]
         : undefined;
     const hasDiscount = currentWeight?.discountPercent > 0;
     const unitPrice = currentWeight ? currentWeight.price - (currentWeight.price * (currentWeight.discountPercent || 0) / 100) : 0;
@@ -123,7 +123,7 @@ export default function QuickViewModal() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-0">
                     <div className="aspect-square bg-gray-100 dark:bg-gray-800 sm:rounded-l-3xl overflow-hidden relative">
                         {image ? (
-                            <img src={image} alt={product.firstName} className="w-full h-full object-cover" />
+                            <img src={image} alt={product.firstName} className="w-full h-full object-contain" />
                         ) : catalog.ready ? (
                             <div className="w-full h-full flex items-center justify-center text-gray-400">No Image</div>
                         ) : null}
@@ -223,7 +223,7 @@ export default function QuickViewModal() {
                                                 }`}
                                                 style={sel && !out ? { background: "var(--theme-primary)", borderColor: "var(--theme-primary)" } : undefined}
                                             >
-                                                {w.weight} · {symbol}{w.price}
+                                                {w.weight}
                                             </button>
                                         );
                                     })}

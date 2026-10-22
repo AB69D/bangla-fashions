@@ -70,7 +70,8 @@ export function uploadUrlToDiskPath(url) {
 }
 
 /**
- * Every image URL a product holds: cover, gallery and each variant's images.
+ * Every image URL a product holds: cover, gallery, each variant's images and
+ * each colour's images.
  * Accepts a mongoose document or a lean object. Strings only, blanks dropped,
  * de-duplicated, first-seen order. Values are returned exactly as stored.
  */
@@ -84,6 +85,7 @@ export function collectProductImageUrls(productLike) {
     asArray(productLike.gallery).forEach(add);
     // weights[].images is an untyped array in the schema, hence the string guard.
     asArray(productLike.weights).forEach((weight) => asArray(weight?.images).forEach(add));
+    asArray(productLike.colors).forEach((color) => asArray(color?.images).forEach(add));
     return [...urls];
 }
 
@@ -93,7 +95,7 @@ export function collectProductImageUrls(productLike) {
 // field that holds the same file as an absolute URL ("https://shop.example/uploads/…")
 // or with a stray query string still counts as a reference.
 const STRUCTURED_OWNERS = [
-    { model: ProductModel, paths: ['cover_image', 'gallery', 'weights.images'] },
+    { model: ProductModel, paths: ['cover_image', 'gallery', 'weights.images', 'colors.images'] },
     { model: CategoryModel, paths: ['category_image'] },
     { model: HeaderModel, paths: ['image'] },
     { model: ReviewModel, paths: ['media.url'] },

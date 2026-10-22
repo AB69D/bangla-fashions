@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FiChevronLeft, FiChevronRight, FiPause, FiPlay } from "react-icons/fi";
+import ImageLightbox from "@/components/ImageLightbox.jsx";
 
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 const mod = (n, m) => ((n % m) + m) % m;
@@ -32,6 +33,9 @@ export default function ProductGallery({ images, alt = "", autoSlide = false, in
     const [keyboardFocus, setKeyboardFocus] = useState(false); // :focus-visible inside
     const [touching, setTouching] = useState(false); // finger down / swiping
     const [tabHidden, setTabHidden] = useState(false);
+    // Index the big-image popup is open on, null while it is closed. The slideshow
+    // stays still behind it.
+    const [zoomIndex, setZoomIndex] = useState(null);
     const [inView, setInView] = useState(true);
     const [reducedMotion, setReducedMotion] = useState(false);
     // Bumped by every manual interaction so the countdown restarts even when the
@@ -74,7 +78,7 @@ export default function ProductGallery({ images, alt = "", autoSlide = false, in
     }, []);
 
     const canAutoplay = !!autoSlide && count > 1 && !reducedMotion;
-    const running = canAutoplay && !userPaused && !hovering && !keyboardFocus && !touching && !tabHidden && inView;
+    const running = canAutoplay && !userPaused && !hovering && !keyboardFocus && !touching && !tabHidden && inView && zoomIndex === null;
     const intervalMs = clamp(Number(intervalSeconds) || 4, 2, 15) * 1000;
 
     useEffect(() => {
@@ -240,6 +244,7 @@ export default function ProductGallery({ images, alt = "", autoSlide = false, in
     const announce = canAutoplay && !userPaused && !keyboardFocus ? "off" : "polite";
 
     return (
+        <>
         <div
             ref={rootRef}
             className="w-full"
@@ -257,7 +262,7 @@ export default function ProductGallery({ images, alt = "", autoSlide = false, in
                 aria-roledescription="carousel"
                 aria-label={`${alt || "Product"} photos`}
                 tabIndex={count > 1 ? 0 : undefined}
-                className="group relative mb-3 aspect-square overflow-hidden rounded-2xl bg-gray-100 shadow-sm ring-1 ring-black/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-600 dark:bg-gray-800 dark:ring-white/10 sm:mb-4 sm:rounded-3xl"
+                className="group relative mb-3 aspect-[4/5] overflow-hidden rounded-2xl bg-gray-100 shadow-sm ring-1 ring-black/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-600 dark:bg-gray-800 dark:ring-white/10 sm:mb-4 sm:rounded-3xl"
             >
                 {count > 0 ? (
                     <div
@@ -278,15 +283,22 @@ export default function ProductGallery({ images, alt = "", autoSlide = false, in
                                 aria-label={`${i + 1} of ${count}`}
                                 className="h-full w-full shrink-0 basis-full snap-center snap-always"
                             >
-                                <img
-                                    src={src}
-                                    alt={count > 1 ? `${alt}, image ${i + 1}` : alt}
-                                    draggable={false}
-                                    decoding="async"
-                                    loading={i === 0 ? "eager" : "lazy"}
-                                    fetchPriority={i === 0 ? "high" : "auto"}
-                                    className="h-full w-full select-none object-cover"
-                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setZoomIndex(i)}
+                                    aria-label={`View image ${i + 1} of ${count} larger`}
+                                    className="block h-full w-full cursor-zoom-in"
+                                >
+                                    <img
+                                        src={src}
+                                        alt={count > 1 ? `${alt}, image ${i + 1}` : alt}
+                                        draggable={false}
+                                        decoding="async"
+                                        loading={i === 0 ? "eager" : "lazy"}
+                                        fetchPriority={i === 0 ? "high" : "auto"}
+                                        className="h-full w-full select-none object-contain"
+                                    />
+                                </button>
                             </div>
                         ))}
                     </div>
@@ -372,11 +384,24 @@ export default function ProductGallery({ images, alt = "", autoSlide = false, in
                                     : "border-transparent opacity-70 hover:border-gray-300 hover:opacity-100 dark:hover:border-gray-600"
                             }`}
                         >
-                            <img src={src} alt="" loading="lazy" decoding="async" draggable={false} className="h-full w-full object-cover" />
+                            <img src={src} alt="" loading="lazy" decoding="async" draggable={false} className="h-full w-full object-contain" />
                         </button>
                     ))}
                 </div>
             )}
         </div>
+        {zoomIndex !== null && (
+            <ImageLightbox
+                images={list}
+                startIndex={zoomIndex}
+                alt={alt}
+                onClose={(last) => {
+                    setZoomIndex(null);
+                    // Land the slider on the photo the shopper ended on.
+                    if (last !== index) goTo(last, { instant: true });
+                }}
+            />
+        )}
+        </>
     );
 }

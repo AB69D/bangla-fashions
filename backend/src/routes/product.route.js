@@ -9,14 +9,19 @@ const productRouter = Router()
 // photo fields have to reach further than the ten sizes they used to cover.
 // Keep MAX_IMAGE_SIZES in the admin ProductImageManager equal to this.
 const MAX_VARIANT_IMAGE_FIELDS = 30
+// One photo field per colour (color_images_<index>). Equals MAX_COLORS in the
+// product controller and the admin ProductColorsEditor.
+const MAX_COLOR_IMAGE_FIELDS = 20
 
 // Create and edit accept the same multipart fields: the cover photo, the
-// product-level gallery, and up to ten photos per variant (weight_images_<index>).
+// product-level gallery, and up to ten photos per variant (weight_images_<index>) and per colour
+// (color_images_<index>).
 // Edit also accepts a plain JSON body — multer skips non-multipart requests.
 const productImageFields = productUpload.fields([
     { name: 'cover_image', maxCount: 1 },
     { name: 'gallery_images', maxCount: 10 },
-    ...Array.from({ length: MAX_VARIANT_IMAGE_FIELDS }, (_, i) => ({ name: `weight_images_${i}`, maxCount: 10 }))
+    ...Array.from({ length: MAX_VARIANT_IMAGE_FIELDS }, (_, i) => ({ name: `weight_images_${i}`, maxCount: 10 })),
+    ...Array.from({ length: MAX_COLOR_IMAGE_FIELDS }, (_, i) => ({ name: `color_images_${i}`, maxCount: 10 }))
 ])
 
 productRouter.post("/upload-product",

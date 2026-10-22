@@ -58,6 +58,17 @@ const colorSchema = new mongoose.Schema({
     available: {
         type: Boolean,
         default: true
+    },
+    // Photos of the product in this colour. When a shopper picks the colour the
+    // storefront slider shows these instead of the general photos; a colour with
+    // none falls back to them. Same location rule as `gallery`.
+    images: {
+        type: [String],
+        default: [],
+        validate: {
+            validator: (urls) => Array.isArray(urls) && urls.every((u) => isValidImageLocation(u)),
+            message: 'Each colour image must be an http(s) URL or an uploaded path like /uploads/2026/09/image.webp'
+        }
     }
 }, { _id: false });
 

@@ -1,12 +1,15 @@
 "use client";
 import { useState } from "react";
 import { FiPlus, FiX } from "react-icons/fi";
+import ProductImageManager, { appendImagesToFormData, countNewFiles, itemsFromUrls } from "@/components/admin/ProductImageManager";
 
 // Product form section where the admin lists the colors a product is sold in.
 // Colors are independent of the sizes: the storefront shows them as swatches and
 // the shopper picks any color with any size. Stock is kept per size, so a color
 // has no stock of its own; marking it "Sold out" is how the admin stops selling
-// it. Used by both the create form and the edit modal.
+// it. Each color also carries its own photos: when a shopper picks a color the
+// storefront slider switches to that color's photos. Used by both the create
+// form and the edit modal.
 
 export const MAX_COLORS = 20;
 export const MAX_COLOR_NAME = 30; // mirrors the backend limit
@@ -43,9 +46,25 @@ const COMMON_SWATCHES = {
 
 const DEFAULT_SWATCH = "#d32f2f";
 
+// Server colours -> editor state (photos become image-manager items).
+export const colorsFromProduct = (colors) =>
+    (colors || []).map((c) => ({ name: c.name, hex: c.hex || "", available: c.available !== false, images: itemsFromUrls(c.images) }));
+
+// Editor state -> the `colors` JSON for the API. New photo files are appended to
+// `formData` as color_images_<position>, which is how the server pairs them up.
+export const colorsPayload = (formData, colors) =>
+    colors.map((c, index) => ({
+        name: c.name,
+        hex: c.hex,
+        available: c.available !== false,
+        images: appendImagesToFormData(formData, `color_images_${index}`, c.images),
+    }));
+
+export const countNewColorFiles = (colors) => colors.reduce((sum, c) => sum + countNewFiles(c.images), 0);
+
 const sameName = (a, b) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
 
-export default function ProductColorsEditor({ colors, onChange, disabled = false }) {
+export default function ProductColorsEditor({ colors, onChange, disabled = false, showPhotos = true }) {
     const [name, setName] = useState("");
     const [hex, setHex] = useState(DEFAULT_SWATCH);
     const [pickedByHand, setPickedByHand] = useState(false);
@@ -66,7 +85,7 @@ export default function ProductColorsEditor({ colors, onChange, disabled = false
         if (clean.length > MAX_COLOR_NAME) return setError(`Keep the name under ${MAX_COLOR_NAME} characters.`);
         if (colors.some((c) => sameName(c.name, clean))) return setError(`${clean} is already added.`);
         if (colors.length >= MAX_COLORS) return setError(`A product can have at most ${MAX_COLORS} colors.`);
-        onChange([...colors, { name: clean, hex, available: true }]);
+        onChange([...colors, { name: clean, hex, available: true, images: [] }]);
         setName("");
         setPickedByHand(false);
         setError("");
@@ -75,6 +94,8 @@ export default function ProductColorsEditor({ colors, onChange, disabled = false
     const remove = (colorName) => onChange(colors.filter((c) => !sameName(c.name, colorName)));
     const toggleAvailable = (colorName) =>
         onChange(colors.map((c) => (sameName(c.name, colorName) ? { ...c, available: c.available === false } : c)));
+    const setImages = (colorName, images) =>
+        onChange(colors.map((c) => (sameName(c.name, colorName) ? { ...c, images } : c)));
 
     return (
         <div className="border-t pt-4 sm:pt-5">
@@ -87,17 +108,22 @@ export default function ProductColorsEditor({ colors, onChange, disabled = false
                     goes with any size. Stock is counted per size, not per color: tap a color&apos;s status to mark it
                     Sold out. Leave empty if the product comes in a single color.
                 </p>
+                <p className="text-[11px] sm:text-xs text-gray-500 mt-1">
+                    Add photos under each color: when a customer picks that color, the slider on the product page shows
+                    those photos. A color without photos shows the product&apos;s general photos.
+                </p>
             </div>
 
             {colors.length > 0 && (
-                <ul className="flex flex-wrap gap-2 mb-3">
+                <ul className="space-y-3 mb-3">
                     {colors.map((c) => {
                         const soldOut = c.available === false;
                         return (
                             <li
                                 key={c.name}
-                                className="inline-flex items-center gap-2 pl-1.5 pr-1 py-1 rounded-full border border-gray-200 bg-white text-xs sm:text-sm text-gray-700"
+                                className="rounded-lg border border-gray-200 bg-white p-2.5 sm:p-3 text-xs sm:text-sm text-gray-700"
                             >
+                                <div className="flex flex-wrap items-center gap-2">
                                 <span
                                     aria-hidden="true"
                                     className="w-5 h-5 rounded-full border border-gray-300"
@@ -120,12 +146,25 @@ export default function ProductColorsEditor({ colors, onChange, disabled = false
                                     type="button"
                                     onClick={() => remove(c.name)}
                                     disabled={disabled}
-                                    title={`Remove ${c.name}`}
+                                    title={`Remove ${c.name}. Its photos are deleted when you save`}
                                     aria-label={`Remove ${c.name}`}
                                     className="w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 disabled:opacity-30"
                                 >
                                     <FiX className="w-3.5 h-3.5" />
                                 </button>
+                                </div>
+                                {showPhotos && (
+                                    <ProductImageManager
+                                        className="mt-2.5"
+                                        label={`Photos for ${c.name}`}
+                                        items={c.images || []}
+                                        onChange={(next) => setImages(c.name, next)}
+                                        max={10}
+                                        showCoverBadge={false}
+                                        compact
+                                        disabled={disabled}
+                                    />
+                                )}
                             </li>
                         );
                     })}

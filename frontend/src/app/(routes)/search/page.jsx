@@ -84,13 +84,13 @@ function SearchContent() {
                             href={`/product/${product._id}`}
                             className="card-hover block bg-white rounded-xl border border-gray-100 overflow-hidden"
                         >
-                            <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                            <div className="aspect-[4/5] bg-gray-100 rounded-lg overflow-hidden">
                                 <img
                                     src={product.cover_image}
                                     alt={product.firstName}
                                     loading="lazy"
                                     decoding="async"
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-contain"
                                 />
                             </div>
                             <div className="p-3 sm:p-4">

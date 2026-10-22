@@ -107,8 +107,11 @@ const MAX_COLOR_NAME = 30;
 // form: [{ name, hex, available }]. A colour is independent of the sizes (the
 // shopper picks any colour with any size), so nothing else in the product has
 // to agree with this list. `hex` is only the swatch the storefront paints and
-// may be blank; `available: false` shows the colour as sold out.
-const normalizeColors = (raw) => {
+// may be blank; `available: false` shows the colour as sold out. `images` are
+// the colour's photos, resolved like a variant's: a kept URL the product already
+// owns, or { new: n } for the n-th file sent in `color_images_<position>`. A
+// colour without an `images` key keeps the photos the same-named colour had.
+const normalizeColors = (raw, { existing = [], files = {}, allowed = new Set() } = {}) => {
     const list = parseJsonField(raw, 'colors');
     if (list === undefined || list === null || list === '') return [];
     if (!Array.isArray(list)) throw ApiError.badRequest('Invalid colors format');
@@ -128,7 +131,18 @@ const normalizeColors = (raw) => {
         if (hex && !HEX_COLOR_RE.test(hex)) {
             throw ApiError.badRequest(`Color "${name}": the swatch must be a hex color like #D32F2F`);
         }
-        return { name, hex, available: item.available === undefined ? true : parseBoolean(item.available) };
+        let images;
+        if (item.images === undefined) {
+            const before = (Array.isArray(existing) ? existing : []).find((c) => String(c?.name ?? '').trim().toLowerCase() === key);
+            images = Array.isArray(before?.images) ? [...before.images] : [];
+        } else {
+            images = resolveImageItems(item.images, {
+                label: `Color "${name}" images`,
+                uploaded: uploadedUrls(files, `color_images_${index}`),
+                allowed
+            });
+        }
+        return { name, hex, available: item.available === undefined ? true : parseBoolean(item.available), images };
     });
 };
 
@@ -270,7 +284,7 @@ export const createProductController = async (request, response) => {
             });
         }
 
-        const colors = normalizeColors(request.body?.colors);
+        const colors = normalizeColors(request.body?.colors, { files });
 
         const processedWeights = weightsArray.map((weightObj, index) => ({
             weight: weightObj.weight,
@@ -480,7 +494,9 @@ export const updateProductDetails = async (request, response) => {
 
         if (body.qa !== undefined) update.qa = normalizeQa(body.qa);
 
-        if (body.colors !== undefined) update.colors = normalizeColors(body.colors);
+        if (body.colors !== undefined) {
+            update.colors = normalizeColors(body.colors, { existing: existing.colors, files, allowed });
+        }
 
         if (body.weights !== undefined) {
             const weightsInput = parseJsonField(body.weights, 'weights');
@@ -533,7 +549,8 @@ export const updateProductDetails = async (request, response) => {
         const keepUrls = new Set(collectProductImageUrls({
             cover_image: cover,
             gallery: update.gallery ?? existing.gallery ?? [],
-            weights: update.weights ?? existing.weights ?? []
+            weights: update.weights ?? existing.weights ?? [],
+            colors: update.colors ?? existing.colors ?? []
         }));
         // Files uploaded in this request that nothing above ended up using
         // (a client that sends files without referencing them): they would

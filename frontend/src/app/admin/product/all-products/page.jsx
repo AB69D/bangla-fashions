@@ -14,7 +14,7 @@ import ProductImageManager, {
     MAX_FILES_PER_REQUEST,
     MAX_IMAGE_SIZES,
 } from "@/components/admin/ProductImageManager";
-import ProductColorsEditor from "@/components/admin/ProductColorsEditor";
+import ProductColorsEditor, { colorsFromProduct, colorsPayload, countNewColorFiles } from "@/components/admin/ProductColorsEditor";
 
 // Mirror of the backend GS1 (prefix 2) barcode generator for in-form previews.
 const genBarcodePreview = (index = 0) => {
@@ -107,7 +107,7 @@ export default function AllProductsPage() {
                 images: itemsFromUrls(w.images),
             })),
         );
-        setEditColors((product.colors || []).map((c) => ({ name: c.name, hex: c.hex || "", available: c.available !== false })));
+        setEditColors(colorsFromProduct(product.colors));
         setBulkPrice("");
         setBulkCost("");
         setEditModal({ show: true, product });
@@ -231,9 +231,9 @@ export default function AllProductsPage() {
         const fields = new FormData(e.currentTarget);
 
         // Fail before uploading anything rather than as a server 400.
-        const newFiles = productMode
+        const newFiles = countNewColorFiles(editColors) + (productMode
             ? countNewFiles(editGallery)
-            : countNewFiles(editCover) + editWeights.reduce((sum, w) => sum + countNewFiles(w.images), 0);
+            : countNewFiles(editCover) + editWeights.reduce((sum, w) => sum + countNewFiles(w.images), 0));
         if (newFiles > MAX_FILES_PER_REQUEST) {
             setEditError(`${newFiles} new photos are selected, but at most ${MAX_FILES_PER_REQUEST} can be uploaded in one save. Remove some, save, then add the rest.`);
             return;
@@ -272,7 +272,7 @@ export default function AllProductsPage() {
             return out;
         });
         body.append("weights", JSON.stringify(weightsPayload));
-        body.append("colors", JSON.stringify(editColors));
+        body.append("colors", JSON.stringify(colorsPayload(body, editColors)));
 
         if (productMode) {
             body.append("gallery", JSON.stringify(appendImagesToFormData(body, "gallery_images", editGallery)));
