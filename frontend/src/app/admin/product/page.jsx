@@ -9,8 +9,9 @@ import ProductImageManager, {
     useAdminCatalogConfig,
     MAX_FILES_PER_REQUEST,
     MAX_IMAGE_SIZES,
+    photosPreparing,
 } from "@/components/admin/ProductImageManager";
-import ProductColorsEditor, { colorsPayload, countNewColorFiles } from "@/components/admin/ProductColorsEditor";
+import ProductColorsEditor, { colorsPayload, countNewColorFiles, prepareColorsForSave } from "@/components/admin/ProductColorsEditor";
 import ProductSizesEditor, { findDuplicateSize } from "@/components/admin/ProductSizesEditor";
 
 export default function CreateProductPage() {
@@ -79,8 +80,19 @@ export default function CreateProductPage() {
         const form = e.currentTarget;
         setMessage("");
 
+        if (photosPreparing()) {
+            showMessage("Error: some photos are still being prepared. Wait a moment, then press Upload Product again.");
+            return;
+        }
+        const prepared = prepareColorsForSave(colors);
+        if (prepared.error) {
+            showMessage(`Error: ${prepared.error}`);
+            return;
+        }
+        const saveColors = prepared.colors;
+
         // Fail before uploading anything rather than as a server 400.
-        const newFiles = countNewColorFiles(colors) + (productMode
+        const newFiles = countNewColorFiles(saveColors) + (productMode
             ? countNewFiles(galleryItems)
             : countNewFiles(coverItems) + weights.reduce((sum, w) => sum + countNewFiles(w.images), 0));
         if (newFiles > MAX_FILES_PER_REQUEST) {
@@ -114,7 +126,7 @@ export default function CreateProductPage() {
         formData.append("firstName", form.firstName.value);
         formData.append("lastName", form.lastName.value);
         formData.append("category", form.category.value);
-        formData.append("colors", JSON.stringify(colorsPayload(formData, colors)));
+        formData.append("colors", JSON.stringify(colorsPayload(formData, saveColors)));
         formData.append("weights", JSON.stringify(weights.map(w => ({
             weight: w.weight,
             stock: parseInt(w.stock) || 0,

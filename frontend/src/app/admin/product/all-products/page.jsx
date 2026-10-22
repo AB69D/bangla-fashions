@@ -13,8 +13,9 @@ import ProductImageManager, {
     useAdminCatalogConfig,
     MAX_FILES_PER_REQUEST,
     MAX_IMAGE_SIZES,
+    photosPreparing,
 } from "@/components/admin/ProductImageManager";
-import ProductColorsEditor, { colorsFromProduct, colorsPayload, countNewColorFiles } from "@/components/admin/ProductColorsEditor";
+import ProductColorsEditor, { colorsFromProduct, colorsPayload, countNewColorFiles, prepareColorsForSave } from "@/components/admin/ProductColorsEditor";
 
 // Mirror of the backend GS1 (prefix 2) barcode generator for in-form previews.
 const genBarcodePreview = (index = 0) => {
@@ -230,8 +231,19 @@ export default function AllProductsPage() {
         const product = editModal.product;
         const fields = new FormData(e.currentTarget);
 
+        if (photosPreparing()) {
+            setEditError("Some photos are still being prepared. Wait a moment, then press Save Changes again.");
+            return;
+        }
+        const prepared = prepareColorsForSave(editColors);
+        if (prepared.error) {
+            setEditError(prepared.error);
+            return;
+        }
+        const saveColors = prepared.colors;
+
         // Fail before uploading anything rather than as a server 400.
-        const newFiles = countNewColorFiles(editColors) + (productMode
+        const newFiles = countNewColorFiles(saveColors) + (productMode
             ? countNewFiles(editGallery)
             : countNewFiles(editCover) + editWeights.reduce((sum, w) => sum + countNewFiles(w.images), 0));
         if (newFiles > MAX_FILES_PER_REQUEST) {
@@ -272,7 +284,7 @@ export default function AllProductsPage() {
             return out;
         });
         body.append("weights", JSON.stringify(weightsPayload));
-        body.append("colors", JSON.stringify(colorsPayload(body, editColors)));
+        body.append("colors", JSON.stringify(colorsPayload(body, saveColors)));
 
         if (productMode) {
             body.append("gallery", JSON.stringify(appendImagesToFormData(body, "gallery_images", editGallery)));

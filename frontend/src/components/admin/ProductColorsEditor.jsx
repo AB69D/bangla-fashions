@@ -1,22 +1,30 @@
 "use client";
 import { useState } from "react";
-import { FiPlus, FiX } from "react-icons/fi";
-import ProductImageManager, { appendImagesToFormData, countNewFiles, fileItem, itemsFromUrls } from "@/components/admin/ProductImageManager";
+import { FiPlus, FiTrash2 } from "react-icons/fi";
+import ProductImageManager, { appendImagesToFormData, countNewFiles, itemsFromUrls } from "@/components/admin/ProductImageManager";
 
 // Product form section where the admin lists the colors a product is sold in.
 // Colors are independent of the sizes: the storefront shows them as swatches and
 // the shopper picks any color with any size. Stock is kept per size, so a color
 // has no stock of its own; marking it "Sold out" is how the admin stops selling
-// it. Each color also carries its own photos: when a shopper picks a color the
-// storefront slider switches to that color's photos. Used by both the create
-// form and the edit modal.
+// it. Used by both the create form and the edit modal.
+//
+// Each color is one card holding everything about it: name, swatch, status and
+// its own photos. "Add color" adds an empty card straight away, so the admin
+// names it and adds its photos in the same place, and there is no half-entered
+// color living outside the list that Save could miss. Before saving, the form
+// runs prepareColorsForSave() to drop untouched empty cards and to stop on a
+// card that has photos but no name.
+//
+// `onChange` must accept an updater function (a React state setter does): cards
+// update themselves from the latest list, so a photo that finishes preparing
+// after another change cannot write back an old copy of the list.
 
 export const MAX_COLORS = 20;
 export const MAX_COLOR_NAME = 30; // mirrors the backend limit
 
-// Typing a common name pre-fills a matching swatch so the admin usually only
-// has to press Add. Anything not listed keeps the picker's current value, and
-// once the admin touches the picker themselves we stop guessing.
+// Typing a common name pre-fills a matching swatch, until the admin picks the
+// swatch by hand.
 const COMMON_SWATCHES = {
     black: "#111111",
     white: "#ffffff",
@@ -31,6 +39,7 @@ const COMMON_SWATCHES = {
     gold: "#c9a227",
     golden: "#c9a227",
     green: "#2e9e4f",
+    "sea green": "#2e8b57",
     olive: "#6b7a2e",
     teal: "#168a8a",
     blue: "#1e5bd8",
@@ -44,14 +53,50 @@ const COMMON_SWATCHES = {
     silver: "#c0c4cc",
 };
 
-const DEFAULT_SWATCH = "#d32f2f";
+const DEFAULT_SWATCH = "#9ca3af";
 
-// Server colours -> editor state (photos become image-manager items).
+let keySeq = 0;
+const nextKey = () => `color-${++keySeq}`;
+
+const cleanName = (value) => String(value ?? "").trim().replace(/\s+/g, " ");
+const sameName = (a, b) => cleanName(a).toLowerCase() === cleanName(b).toLowerCase();
+
+const newColor = () => ({ _key: nextKey(), _new: true, name: "", hex: DEFAULT_SWATCH, hexByHand: false, available: true, images: [] });
+
+// Server colours -> editor state. Saved colours keep their name: carts and past
+// orders refer to a colour by name, so renaming one would orphan them.
 export const colorsFromProduct = (colors) =>
-    (colors || []).map((c) => ({ name: c.name, hex: c.hex || "", available: c.available !== false, images: itemsFromUrls(c.images) }));
+    (colors || []).map((c) => ({
+        _key: nextKey(),
+        _new: false,
+        name: c.name,
+        hex: c.hex || "",
+        hexByHand: true,
+        available: c.available !== false,
+        images: itemsFromUrls(c.images),
+    }));
 
-// Editor state -> the `colors` JSON for the API. New photo files are appended to
-// `formData` as color_images_<position>, which is how the server pairs them up.
+// The colours to save, or the first problem to show the admin. A card left
+// completely empty is ignored; a card with photos must have a name.
+export function prepareColorsForSave(colors) {
+    const out = [];
+    for (let i = 0; i < colors.length; i += 1) {
+        const c = colors[i];
+        const name = cleanName(c.name);
+        const label = `Color ${i + 1}`;
+        if (!name) {
+            if ((c.images || []).length) return { error: `${label} has photos but no name. Type its name, or remove the color.` };
+            continue;
+        }
+        if (name.length > MAX_COLOR_NAME) return { error: `${label}: keep the name under ${MAX_COLOR_NAME} characters.` };
+        if (out.some((o) => sameName(o.name, name))) return { error: `The color "${name}" is listed twice.` };
+        out.push({ ...c, name });
+    }
+    return { colors: out };
+}
+
+// Prepared colours -> the `colors` JSON for the API. New photo files are appended
+// to `formData` as color_images_<position>, which is how the server pairs them up.
 export const colorsPayload = (formData, colors) =>
     colors.map((c, index) => ({
         name: c.name,
@@ -62,109 +107,120 @@ export const colorsPayload = (formData, colors) =>
 
 export const countNewColorFiles = (colors) => colors.reduce((sum, c) => sum + countNewFiles(c.images), 0);
 
-const sameName = (a, b) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
-
 export default function ProductColorsEditor({ colors, onChange, disabled = false, showPhotos = true }) {
-    const [name, setName] = useState("");
-    const [hex, setHex] = useState(DEFAULT_SWATCH);
-    const [pickedByHand, setPickedByHand] = useState(false);
-    const [error, setError] = useState("");
-    // Photos picked in the "new color" box, before Add is pressed.
-    const [pendingImages, setPendingImages] = useState([]);
+    // The card just added, whose name field should take the focus.
+    const [focusKey, setFocusKey] = useState(null);
 
-    const handleName = (value) => {
-        setName(value);
-        setError("");
-        if (!pickedByHand) {
-            const guess = COMMON_SWATCHES[value.trim().toLowerCase()];
-            if (guess) setHex(guess);
-        }
-    };
+    const update = (key, patch) =>
+        onChange((prev) => prev.map((c) => (c._key === key ? { ...c, ...(typeof patch === "function" ? patch(c) : patch) } : c)));
 
     const add = () => {
-        const clean = name.trim().replace(/\s+/g, " ");
-        if (!clean) return setError("Type a color name first.");
-        if (clean.length > MAX_COLOR_NAME) return setError(`Keep the name under ${MAX_COLOR_NAME} characters.`);
-        if (colors.some((c) => sameName(c.name, clean))) return setError(`${clean} is already added.`);
-        if (colors.length >= MAX_COLORS) return setError(`A product can have at most ${MAX_COLORS} colors.`);
-        // Fresh items (and blob previews) for the color's own photo box: the new-color
-        // box revokes the previews of whatever leaves it, which is all of them now.
-        const images = pendingImages.map((i) => (i.kind === "file" ? fileItem(i.file) : i));
-        onChange([...colors, { name: clean, hex, available: true, images }]);
-        setPendingImages([]);
-        setName("");
-        setPickedByHand(false);
-        setError("");
+        const color = newColor();
+        setFocusKey(color._key);
+        onChange((prev) => (prev.length >= MAX_COLORS ? prev : [...prev, color]));
     };
 
-    const remove = (colorName) => onChange(colors.filter((c) => !sameName(c.name, colorName)));
-    const toggleAvailable = (colorName) =>
-        onChange(colors.map((c) => (sameName(c.name, colorName) ? { ...c, available: c.available === false } : c)));
-    const setImages = (colorName, images) =>
-        onChange(colors.map((c) => (sameName(c.name, colorName) ? { ...c, images } : c)));
+    const remove = (c, index) => {
+        const photos = (c.images || []).length;
+        const label = cleanName(c.name) || `color ${index + 1}`;
+        if (photos && !window.confirm(`Remove ${label} and its ${photos} photo${photos === 1 ? "" : "s"}?`)) return;
+        onChange((prev) => prev.filter((x) => x._key !== c._key));
+    };
+
+    const rename = (key, value) =>
+        update(key, (c) => {
+            const guess = COMMON_SWATCHES[cleanName(value).toLowerCase()];
+            return { name: value, ...(!c.hexByHand && guess ? { hex: guess } : {}) };
+        });
+
+    // Same name typed twice: flagged on the card as soon as it happens.
+    const duplicate = (c) => cleanName(c.name) && colors.some((o) => o._key !== c._key && sameName(o.name, c.name));
 
     return (
         <div className="border-t pt-4 sm:pt-5">
-            <div className="mb-2 sm:mb-3">
+            <div className="mb-3">
                 <h4 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-800">
                     Colors <span className="text-xs font-normal text-gray-400">(optional)</span>
                 </h4>
                 <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5">
-                    List the colors this product comes in. Customers pick a color and a size separately, so any listed color
-                    goes with any size. Stock is counted per size, not per color: tap a color&apos;s status to mark it
-                    Sold out. Leave empty if the product comes in a single color.
-                </p>
-                <p className="text-[11px] sm:text-xs text-gray-500 mt-1">
-                    Add photos under each color: when a customer picks that color, the slider on the product page shows
-                    those photos. A color without photos shows the product&apos;s general photos.
+                    Add each color this product comes in, with its own photos. When a customer picks a color, its photos
+                    show first in the product slider. Customers pick color and size separately, and stock is counted per
+                    size. Leave this empty if the product comes in a single color.
                 </p>
             </div>
 
             {colors.length > 0 && (
                 <ul className="space-y-3 mb-3">
-                    {colors.map((c) => {
+                    {colors.map((c, index) => {
                         const soldOut = c.available === false;
+                        const name = cleanName(c.name);
+                        const dup = duplicate(c);
                         return (
-                            <li
-                                key={c.name}
-                                className="rounded-lg border border-gray-200 bg-white p-2.5 sm:p-3 text-xs sm:text-sm text-gray-700"
-                            >
-                                <div className="flex flex-wrap items-center gap-2">
-                                <span
-                                    aria-hidden="true"
-                                    className="w-5 h-5 rounded-full border border-gray-300"
-                                    style={{ background: c.hex || "transparent" }}
-                                />
-                                <span className={`font-medium ${soldOut ? "line-through text-gray-400" : ""}`}>{c.name}</span>
-                                <button
-                                    type="button"
-                                    onClick={() => toggleAvailable(c.name)}
-                                    disabled={disabled}
-                                    aria-pressed={soldOut}
-                                    title={soldOut ? "Sold out. Tap to sell it again" : "Tap to mark this color Sold out"}
-                                    className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold disabled:opacity-50 ${
-                                        soldOut ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"
-                                    }`}
-                                >
-                                    {soldOut ? "Sold out" : "Available"}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => remove(c.name)}
-                                    disabled={disabled}
-                                    title={`Remove ${c.name}. Its photos are deleted when you save`}
-                                    aria-label={`Remove ${c.name}`}
-                                    className="w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 disabled:opacity-30"
-                                >
-                                    <FiX className="w-3.5 h-3.5" />
-                                </button>
+                            <li key={c._key} className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
+                                <div className="flex items-center gap-2">
+                                    <span className="shrink-0 text-xs font-semibold text-gray-400 w-5">{index + 1}.</span>
+                                    <label className="relative shrink-0 w-9 h-9 rounded-full border border-gray-300 overflow-hidden cursor-pointer" title="Swatch color">
+                                        <span className="absolute inset-0" style={{ background: c.hex || "transparent" }} aria-hidden="true" />
+                                        <input
+                                            type="color"
+                                            value={c.hex || DEFAULT_SWATCH}
+                                            disabled={disabled}
+                                            onChange={(e) => update(c._key, { hex: e.target.value, hexByHand: true })}
+                                            aria-label={`Swatch for ${name || `color ${index + 1}`}`}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        />
+                                    </label>
+                                    {c._new ? (
+                                        <input
+                                            type="text"
+                                            value={c.name}
+                                            maxLength={MAX_COLOR_NAME}
+                                            disabled={disabled}
+                                            autoFocus={focusKey === c._key}
+                                            onChange={(e) => rename(c._key, e.target.value)}
+                                            // Enter must not submit the whole product form.
+                                            onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                                            placeholder="Color name, e.g. Maroon"
+                                            aria-label={`Name of color ${index + 1}`}
+                                            aria-invalid={dup || undefined}
+                                            className={`min-w-0 flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800 text-sm ${
+                                                dup ? "border-red-400" : "border-gray-300"
+                                            }`}
+                                        />
+                                    ) : (
+                                        <span className={`min-w-0 flex-1 truncate text-sm font-semibold ${soldOut ? "line-through text-gray-400" : "text-gray-800"}`}>
+                                            {c.name}
+                                        </span>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => update(c._key, { available: soldOut })}
+                                        disabled={disabled}
+                                        aria-pressed={soldOut}
+                                        title={soldOut ? "Sold out. Tap to sell it again" : "Tap to mark this color Sold out"}
+                                        className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold disabled:opacity-50 ${
+                                            soldOut ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"
+                                        }`}
+                                    >
+                                        {soldOut ? "Sold out" : "Available"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => remove(c, index)}
+                                        disabled={disabled}
+                                        aria-label={`Remove ${name || `color ${index + 1}`}`}
+                                        className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30"
+                                    >
+                                        <FiTrash2 className="w-4 h-4" />
+                                    </button>
                                 </div>
+                                {dup && <p role="alert" className="mt-1.5 ml-7 text-[11px] text-red-600">This color is already in the list.</p>}
                                 {showPhotos && (
                                     <ProductImageManager
-                                        className="mt-2.5"
-                                        label={`Photos for ${c.name}`}
+                                        className="mt-3"
+                                        label={`Photos of ${name || "this color"}`}
                                         items={c.images || []}
-                                        onChange={(next) => setImages(c.name, next)}
+                                        onChange={(next) => update(c._key, { images: next })}
                                         max={10}
                                         showCoverBadge={false}
                                         compact
@@ -177,73 +233,17 @@ export default function ProductColorsEditor({ colors, onChange, disabled = false
                 </ul>
             )}
 
-            <div className="rounded-lg border border-dashed border-emerald-300 bg-emerald-50/40 p-2.5 sm:p-3">
-            <p className="text-xs sm:text-sm font-semibold text-gray-700 mb-2">{colors.length ? "Add another color" : "Add a color"}</p>
-            <div className="flex flex-wrap items-end gap-2">
-                <div className="grow basis-40 min-w-0">
-                    <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Color name</label>
-                    <input
-                        type="text"
-                        value={name}
-                        maxLength={MAX_COLOR_NAME}
-                        disabled={disabled}
-                        onChange={(e) => handleName(e.target.value)}
-                        onKeyDown={(e) => {
-                            // Enter must add the color, not submit the whole product
-                            // form. An empty field is ignored quietly: the error is for
-                            // the Add button, not for a stray Enter.
-                            if (e.key === "Enter") {
-                                e.preventDefault();
-                                if (name.trim()) add();
-                            }
-                        }}
-                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-700 text-xs sm:text-sm"
-                        placeholder="e.g. Maroon"
-                    />
-                </div>
-                <div>
-                    <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Swatch</label>
-                    <input
-                        type="color"
-                        value={hex}
-                        disabled={disabled}
-                        onChange={(e) => {
-                            setHex(e.target.value);
-                            setPickedByHand(true);
-                        }}
-                        aria-label="Swatch color"
-                        className="h-8 sm:h-9 w-12 p-0.5 border border-gray-300 rounded-lg bg-white cursor-pointer"
-                    />
-                </div>
-            </div>
-            {showPhotos && (
-                <ProductImageManager
-                    className="mt-2.5"
-                    label="Photos of this color (optional)"
-                    hint="You can also add or change them after adding the color."
-                    items={pendingImages}
-                    onChange={setPendingImages}
-                    max={10}
-                    showCoverBadge={false}
-                    compact
-                    disabled={disabled}
-                />
-            )}
             <button
                 type="button"
                 onClick={add}
-                disabled={disabled}
-                className="mt-2.5 flex items-center gap-1 h-8 sm:h-9 px-3 rounded-lg bg-emerald-600 text-white text-xs sm:text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                disabled={disabled || colors.length >= MAX_COLORS}
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 h-10 px-4 rounded-lg border-2 border-dashed border-emerald-300 text-emerald-700 text-sm font-semibold hover:bg-emerald-50 disabled:opacity-50"
             >
-                <FiPlus className="w-3 h-3 sm:w-4 sm:h-4" />
-                {pendingImages.length ? `Add color with ${pendingImages.length} photo${pendingImages.length === 1 ? "" : "s"}` : "Add color"}
+                <FiPlus className="w-4 h-4" /> {colors.length ? "Add another color" : "Add color"}
             </button>
-            {error && (
-                <p role="alert" className="mt-1.5 text-[11px] sm:text-xs text-red-600">
-                    {error}
-                </p>
+            {colors.length >= MAX_COLORS && (
+                <p className="mt-1.5 text-[11px] text-gray-500">A product can have at most {MAX_COLORS} colors.</p>
             )}
-            </div>
         </div>
     );
 }

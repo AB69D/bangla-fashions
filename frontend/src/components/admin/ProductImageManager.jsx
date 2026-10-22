@@ -25,6 +25,12 @@ export const MAX_IMAGE_SIZES = 30; // backend accepts weight_images_0..29 (MAX_V
 let seq = 0;
 const nextId = () => `img-${++seq}`;
 
+// How many image fields on the page are still preparing picked photos. The
+// product forms check it before saving: a photo still being prepared is not in
+// the form yet, and saving then would quietly leave it out.
+let preparingFields = 0;
+export const photosPreparing = () => preparingFields > 0;
+
 export const urlItem = (url) => ({ kind: "url", url, id: nextId() });
 export const fileItem = (file) => ({ kind: "file", file, preview: URL.createObjectURL(file), id: nextId() });
 
@@ -155,6 +161,13 @@ export default function ProductImageManager({
     // True while picked photos are being read and shrunk (see prepareImageFile).
     const [preparing, setPreparing] = useState(false);
     const busy = disabled || preparing;
+    // Preparing photos takes a moment, and the parent may re-render meanwhile
+    // (another field typed into, another photo box changed). The result is added
+    // to the items and handed to the onChange of that moment, not of the click.
+    const latest = useRef({ items, onChange });
+    useEffect(() => {
+        latest.current = { items, onChange };
+    });
 
     const single = max === 1;
     const count = items.length;
@@ -197,19 +210,24 @@ export default function ProductImageManager({
 
         // One at a time: each photo is decoded at full size, which is heavy on a phone.
         setPreparing(true);
+        preparingFields += 1;
         const accepted = [];
-        for (const file of picked) {
-            let ready;
-            try {
-                ready = await prepareImageFile(file);
-            } catch {
-                problems.push(`${file.name} could not be read, please pick it again`);
-                continue;
+        try {
+            for (const file of picked) {
+                let ready;
+                try {
+                    ready = await prepareImageFile(file);
+                } catch {
+                    problems.push(`${file.name} could not be read, please pick it again`);
+                    continue;
+                }
+                if (ready.size > MAX_IMAGE_BYTES) problems.push(`${file.name} is larger than 8 MB`);
+                else accepted.push(fileItem(ready));
             }
-            if (ready.size > MAX_IMAGE_BYTES) problems.push(`${file.name} is larger than 8 MB`);
-            else accepted.push(fileItem(ready));
+        } finally {
+            preparingFields -= 1;
+            setPreparing(false);
         }
-        setPreparing(false);
 
         if (overflow > 0) {
             problems.push(
@@ -219,7 +237,10 @@ export default function ProductImageManager({
             );
         }
         setError(problems.length ? `${problems.slice(0, 3).join("; ")}${problems.length > 3 ? `; and ${problems.length - 3} more` : ""}.` : "");
-        if (accepted.length > 0) onChange(single ? accepted : [...items, ...accepted]);
+        if (accepted.length > 0) {
+            const { items: current, onChange: emit } = latest.current;
+            emit(single ? accepted : [...current, ...accepted]);
+        }
     };
 
     const remove = (index) => {
