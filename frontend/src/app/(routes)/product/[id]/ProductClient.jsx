@@ -55,6 +55,9 @@ export default function ProductClient({ productId }) {
     const [selectedWeight, setSelectedWeight] = useState(0);
     // Colour is independent of the size: any listed colour goes with any size.
     const [selectedColor, setSelectedColor] = useState("");
+    // The page opens on a buyable colour, but the slider keeps showing the general
+    // photos until the shopper picks a colour themselves.
+    const [colorPicked, setColorPicked] = useState(false);
     const [quantity, setQuantity] = useState(1);
     const [adding, setAdding] = useState(false);
     const [added, setAdded] = useState(false);
@@ -83,6 +86,7 @@ export default function ProductClient({ productId }) {
                     // Open on a size and a colour that can be bought, not a sold-out first one.
                     setSelectedWeight(firstAvailableIndex(data.data));
                     setSelectedColor(firstAvailableColor(data.data));
+                    setColorPicked(false);
                     if (productRef.current) {
                         productRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
@@ -317,10 +321,10 @@ export default function ProductClient({ productId }) {
     }
 
     const currentWeight = product.weights?.[selectedWeight];
-    // The picked colour's own photos win. Without them it depends on the
-    // store-wide image mode: in "variant" mode they follow the selected size, in
+    // A colour the shopper picked leads with its own photos. Otherwise it depends
+    // on the store-wide image mode: in "variant" mode they follow the selected size, in
     // "product" mode it is one gallery.
-    const galleryImages = getProductImages(product, { mode: catalog.productImageMode, weightIndex: selectedWeight, color: selectedColor });
+    const galleryImages = getProductImages(product, { mode: catalog.productImageMode, weightIndex: selectedWeight, color: colorPicked ? selectedColor : "" });
     const hasDiscount = currentWeight?.discountPercent > 0;
     const unitPrice = currentWeight ? currentWeight.price - (currentWeight.price * (currentWeight.discountPercent || 0) / 100) : 0;
     const inStock = variantInStock(currentWeight);
@@ -441,7 +445,10 @@ export default function ProductClient({ productId }) {
                                             disabled={!color.available}
                                             aria-label={color.available ? color.name : `${color.name} (sold out)`}
                                             title={color.available ? color.name : `${color.name} — sold out`}
-                                            onClick={() => setSelectedColor(color.name)}
+                                            onClick={() => {
+                                                setSelectedColor(color.name);
+                                                setColorPicked(true);
+                                            }}
                                             className={`relative flex items-center justify-center overflow-hidden transition-all active:scale-95 disabled:cursor-not-allowed ${
                                                 swatch ? "w-10 h-10 rounded-full" : "px-3.5 h-10 rounded-xl text-sm font-medium"
                                             } ${color.available ? "" : "opacity-50"} ${

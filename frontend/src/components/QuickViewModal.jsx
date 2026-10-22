@@ -29,6 +29,8 @@ export default function QuickViewModal() {
     const [loading, setLoading] = useState(false);
     const [selectedWeight, setSelectedWeight] = useState(0);
     const [selectedColor, setSelectedColor] = useState("");
+    // General photo until the shopper picks a colour themselves.
+    const [colorPicked, setColorPicked] = useState(false);
     const [quantity, setQuantity] = useState(1);
     const [adding, setAdding] = useState(false);
     const [added, setAdded] = useState(false);
@@ -42,6 +44,7 @@ export default function QuickViewModal() {
         // Start on a size and a colour that can be bought, not a sold-out first one.
         setSelectedWeight(firstAvailableIndex(summary));
         setSelectedColor(firstAvailableColor(summary));
+        setColorPicked(false);
         setQuantity(1);
         setAdded(false);
         let cancelled = false;
@@ -80,6 +83,10 @@ export default function QuickViewModal() {
     // "variant" mode, the product's lead photo in "product" mode. Held back until settings load so the wrong photo
     // never flashes (the modal is opened by a click, so this is rarely visible).
     const image = catalog.ready
+        ? getProductImages(product, { mode: catalog.productImageMode, weightIndex: selectedWeight, color: colorPicked ? selectedColor : "" })[0]
+        : undefined;
+    // The cart line shows the colour being bought, picked or not.
+    const cartImage = catalog.ready
         ? getProductImages(product, { mode: catalog.productImageMode, weightIndex: selectedWeight, color: selectedColor })[0]
         : undefined;
     const hasDiscount = currentWeight?.discountPercent > 0;
@@ -92,7 +99,7 @@ export default function QuickViewModal() {
         if (!currentWeight) return;
         setAdding(true);
         try {
-            await addToCart(product._id, quantity, currentWeight.weight, selectedWeight, currentWeight.price, currentWeight.discountPercent || 0, product.firstName, image || getProductCover(product), selectedColor);
+            await addToCart(product._id, quantity, currentWeight.weight, selectedWeight, currentWeight.price, currentWeight.discountPercent || 0, product.firstName, cartImage || getProductCover(product), selectedColor);
             trackAddToCart({ productId: product._id, name: product.firstName, price: unitPrice, quantity, currency: undefined });
             window.dispatchEvent(new Event("cart-updated"));
             setAdded(true);
@@ -176,7 +183,10 @@ export default function QuickViewModal() {
                                                 disabled={!color.available}
                                                 aria-label={color.available ? color.name : `${color.name} (sold out)`}
                                                 title={color.available ? color.name : `${color.name} — sold out`}
-                                                onClick={() => setSelectedColor(color.name)}
+                                                onClick={() => {
+                                                    setSelectedColor(color.name);
+                                                    setColorPicked(true);
+                                                }}
                                                 className={`relative flex items-center justify-center overflow-hidden transition-all active:scale-95 disabled:cursor-not-allowed ${
                                                     swatch ? "w-8 h-8 rounded-full" : "px-3 h-8 rounded-lg text-xs font-medium"
                                                 } ${color.available ? "" : "opacity-50"} ${

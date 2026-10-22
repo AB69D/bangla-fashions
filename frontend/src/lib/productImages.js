@@ -8,8 +8,9 @@
 // leaves a product without a picture.
 //
 // On top of either mode, a colour can have photos of its own (`colors[].images`).
-// While the shopper has that colour picked, its photos are the slider; a colour
-// without photos (or no colour picked) falls through to the mode's photos.
+// While the shopper has that colour picked, its photos lead the slider and the
+// mode's photos follow them; with no colour picked (or a colour without photos)
+// the slider is just the mode's photos.
 
 const isUrl = (v) => typeof v === "string" && v.trim() !== "";
 
@@ -41,20 +42,15 @@ const firstColorImages = (product) => {
     return [];
 };
 
-export function getProductImages(product, { mode, weightIndex = 0, color = "" } = {}) {
-    if (!product) return [];
-
-    const colorOwn = getColorImages(product, color);
-    if (colorOwn.length) return colorOwn;
-
+// The photos the product shows without a colour, decided by the store-wide mode.
+const generalImages = (product, mode, weightIndex) => {
     const gallery = clean(product.gallery);
     const cover = isUrl(product.cover_image) ? [product.cover_image] : [];
 
     if (mode === "product") {
         if (gallery.length) return gallery;
         // Legacy product: show the cover plus its size photos rather than just the cover.
-        const fallback = [...new Set([...cover, ...firstVariantImages(product)])];
-        return fallback.length ? fallback : firstColorImages(product);
+        return [...new Set([...cover, ...firstVariantImages(product)])];
     }
 
     // Anything that is not exactly "product" behaves like today's storefront.
@@ -63,8 +59,19 @@ export function getProductImages(product, { mode, weightIndex = 0, color = "" } 
     // Gallery-mode product viewed in per-size mode: its gallery beats a lone cover.
     if (gallery.length) return gallery;
     if (cover.length) return cover;
-    const variant = firstVariantImages(product);
-    return variant.length ? variant : firstColorImages(product);
+    return firstVariantImages(product);
+};
+
+export function getProductImages(product, { mode, weightIndex = 0, color = "" } = {}) {
+    if (!product) return [];
+
+    const general = generalImages(product, mode, weightIndex);
+    const colorOwn = getColorImages(product, color);
+    // A picked colour leads with its own photos and the general slider follows,
+    // so the general photos are never lost.
+    if (colorOwn.length) return [...new Set([...colorOwn, ...general])];
+    // A product whose only photos are colour photos still needs a picture.
+    return general.length ? general : firstColorImages(product);
 }
 
 // One representative image for cards, cart lines, metadata and JSON-LD.
