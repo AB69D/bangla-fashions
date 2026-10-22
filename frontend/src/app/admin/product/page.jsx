@@ -144,8 +144,9 @@ export default function CreateProductPage() {
                 method: "POST",
                 body: formData,
             });
-            const data = await res.json();
-            
+            // A proxy error page is not JSON: report the status instead of a vague failure.
+            const data = await res.json().catch(() => ({ message: `the server answered ${res.status} ${res.statusText}`.trim() }));
+
             if (data.success) {
                 showMessage(`Success: ${data.message}`);
                 form.reset();
@@ -162,7 +163,7 @@ export default function CreateProductPage() {
                 showMessage(`Error: ${data.message}`);
             }
         } catch (error) {
-            showMessage("Failed to submit. Please check your connection.");
+            showMessage(`Failed to submit (${error?.message || "network error"}). Check the connection and try again. If it keeps failing, remove the photos and pick them again.`);
             console.error(error);
         } finally {
             setLoading(false);

@@ -90,6 +90,49 @@ const IMAGE_EXT_RE = /\.(jpe?g|png|webp|gif|avif|heic|heif|svg|bmp)$/i;
 const isImageFile = (file) => (file.type ? file.type.startsWith("image/") : IMAGE_EXT_RE.test(file.name || ""));
 const hasFiles = (e) => Array.from(e.dataTransfer?.types || []).includes("Files");
 
+// The server stores product photos at most 2000px on the long edge, so nothing
+// larger is worth sending.
+const MAX_UPLOAD_EDGE = 2000;
+const SMALL_ENOUGH_BYTES = 1.5 * 1024 * 1024;
+
+// Turn a picked photo into the file that will be uploaded, right when it is
+// picked:
+//   - its bytes are read into memory now. On Android a photo from the gallery
+//     is only a handle, and by the time Save is pressed Chrome may no longer be
+//     allowed to read it (net::ERR_UPLOAD_FILE_CHANGED), which fails the whole
+//     upload before it leaves the phone;
+//   - a large JPEG/PNG/WebP is scaled down to MAX_UPLOAD_EDGE, so a phone uploads
+//     a few hundred KB per photo instead of several MB.
+// Formats the browser cannot redraw (HEIC, AVIF, GIF, SVG) are sent as picked.
+async function prepareImageFile(file) {
+    const copy = new File([await file.arrayBuffer()], file.name, { type: file.type, lastModified: file.lastModified });
+    if (!/^image\/(jpe?g|png|webp)$/i.test(copy.type) || typeof createImageBitmap !== "function") return copy;
+
+    let bitmap;
+    try {
+        bitmap = await createImageBitmap(copy);
+    } catch {
+        return copy;
+    }
+    try {
+        const scale = Math.min(1, MAX_UPLOAD_EDGE / Math.max(bitmap.width, bitmap.height));
+        if (scale === 1 && copy.size <= SMALL_ENOUGH_BYTES) return copy;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        // JPEG stays JPEG; PNG/WebP become WebP so a transparent background survives.
+        const type = /jpe?g/i.test(copy.type) ? "image/jpeg" : "image/webp";
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, type, 0.9));
+        // A browser that cannot encode the type hands back PNG instead: keep the original.
+        if (!blob || blob.type !== type || blob.size >= copy.size) return copy;
+        const name = `${copy.name.replace(/\.[^.]+$/, "") || "photo"}.${type === "image/jpeg" ? "jpg" : "webp"}`;
+        return new File([blob], name, { type, lastModified: copy.lastModified });
+    } finally {
+        bitmap.close?.();
+    }
+}
+
 export default function ProductImageManager({
     label,
     hint,
@@ -109,6 +152,9 @@ export default function ProductImageManager({
     const [overIndex, setOverIndex] = useState(null);
     const [error, setError] = useState("");
     const [announce, setAnnounce] = useState("");
+    // True while picked photos are being read and shrunk (see prepareImageFile).
+    const [preparing, setPreparing] = useState(false);
+    const busy = disabled || preparing;
 
     const single = max === 1;
     const count = items.length;
@@ -130,26 +176,41 @@ export default function ProductImageManager({
         [],
     );
 
-    const addFiles = (fileList) => {
+    const addFiles = async (fileList) => {
         const incoming = Array.from(fileList || []);
-        if (disabled || incoming.length === 0) return;
+        if (busy || incoming.length === 0) return;
 
         // A one-image field (cover) swaps its image instead of refusing a second one.
         const room = single ? 1 : Math.max(0, max - count);
-        const accepted = [];
+        const picked = [];
         const problems = [];
         let overflow = 0;
         for (const file of incoming) {
             if (!isImageFile(file)) {
                 problems.push(`${file.name} is not an image`);
-            } else if (file.size > MAX_IMAGE_BYTES) {
-                problems.push(`${file.name} is larger than 8 MB`);
-            } else if (accepted.length >= room) {
+            } else if (picked.length >= room) {
                 overflow += 1;
             } else {
-                accepted.push(fileItem(file));
+                picked.push(file);
             }
         }
+
+        // One at a time: each photo is decoded at full size, which is heavy on a phone.
+        setPreparing(true);
+        const accepted = [];
+        for (const file of picked) {
+            let ready;
+            try {
+                ready = await prepareImageFile(file);
+            } catch {
+                problems.push(`${file.name} could not be read, please pick it again`);
+                continue;
+            }
+            if (ready.size > MAX_IMAGE_BYTES) problems.push(`${file.name} is larger than 8 MB`);
+            else accepted.push(fileItem(ready));
+        }
+        setPreparing(false);
+
         if (overflow > 0) {
             problems.push(
                 single
@@ -183,7 +244,7 @@ export default function ProductImageManager({
     };
 
     const onZoneDragOver = (e) => {
-        if (disabled || !hasFiles(e)) return;
+        if (busy || !hasFiles(e)) return;
         e.preventDefault();
         setDropping(true);
     };
@@ -210,7 +271,7 @@ export default function ProductImageManager({
                 accept="image/*"
                 multiple={!single}
                 className="hidden"
-                disabled={disabled}
+                disabled={busy}
                 onChange={(e) => {
                     addFiles(e.target.files);
                     e.target.value = ""; // allow picking the same file again
@@ -228,13 +289,13 @@ export default function ProductImageManager({
                 {count === 0 ? (
                     <button
                         type="button"
-                        disabled={disabled}
+                        disabled={busy}
                         onClick={() => inputRef.current?.click()}
                         className="w-full flex flex-col items-center justify-center gap-1 py-5 sm:py-6 text-gray-500 hover:text-emerald-700 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                     >
                         <FiUploadCloud className="w-6 h-6 sm:w-7 sm:h-7" />
                         <span className="text-xs sm:text-sm font-medium">
-                            {dropping ? "Drop to add" : single ? "Click to choose an image, or drop one here" : "Click to choose images, or drop them here"}
+                            {preparing ? "Preparing photos..." : dropping ? "Drop to add" : single ? "Click to choose an image, or drop one here" : "Click to choose images, or drop them here"}
                         </span>
                     </button>
                 ) : (
@@ -246,7 +307,7 @@ export default function ProductImageManager({
                             return (
                                 <li
                                     key={item.id}
-                                    draggable={!disabled && count > 1}
+                                    draggable={!busy && count > 1}
                                     onDragStart={(e) => {
                                         dragFrom.current = index;
                                         setDragIndex(index);
@@ -270,7 +331,7 @@ export default function ProductImageManager({
                                     onDragEnd={endDrag}
                                     className={`relative aspect-square rounded-lg overflow-hidden border bg-white ${
                                         isOver ? "ring-2 ring-emerald-500 border-emerald-500" : "border-gray-200"
-                                    } ${isDragging ? "opacity-40" : ""} ${count > 1 && !disabled ? "cursor-grab" : ""}`}
+                                    } ${isDragging ? "opacity-40" : ""} ${count > 1 && !busy ? "cursor-grab" : ""}`}
                                 >
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
@@ -295,7 +356,7 @@ export default function ProductImageManager({
 
                                     <button
                                         type="button"
-                                        disabled={disabled}
+                                        disabled={busy}
                                         onClick={() => remove(index)}
                                         aria-label={`Remove image ${index + 1}`}
                                         className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center rounded-full bg-black/60 text-white hover:bg-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
@@ -307,7 +368,7 @@ export default function ProductImageManager({
                                         <div className="absolute bottom-1 inset-x-1 flex items-center justify-between">
                                             <button
                                                 type="button"
-                                                disabled={disabled || index === 0}
+                                                disabled={busy || index === 0}
                                                 onClick={() => move(index, index - 1)}
                                                 aria-label={`Move image ${index + 1} left`}
                                                 className="w-6 h-6 flex items-center justify-center rounded-full bg-black/60 text-white hover:bg-emerald-600 disabled:opacity-30 disabled:hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
@@ -316,7 +377,7 @@ export default function ProductImageManager({
                                             </button>
                                             <button
                                                 type="button"
-                                                disabled={disabled || index === count - 1}
+                                                disabled={busy || index === count - 1}
                                                 onClick={() => move(index, index + 1)}
                                                 aria-label={`Move image ${index + 1} right`}
                                                 className="w-6 h-6 flex items-center justify-center rounded-full bg-black/60 text-white hover:bg-emerald-600 disabled:opacity-30 disabled:hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
@@ -333,12 +394,12 @@ export default function ProductImageManager({
                             <li>
                                 <button
                                     type="button"
-                                    disabled={disabled}
+                                    disabled={busy}
                                     onClick={() => inputRef.current?.click()}
                                     className="w-full aspect-square flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-gray-300 bg-white text-gray-500 hover:text-emerald-700 hover:border-emerald-400 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                                 >
                                     <FiUploadCloud className="w-5 h-5" />
-                                    <span className="text-[10px] sm:text-xs font-medium">{dropping ? "Drop" : addLabel}</span>
+                                    <span className="text-[10px] sm:text-xs font-medium">{preparing ? "Preparing..." : dropping ? "Drop" : addLabel}</span>
                                 </button>
                             </li>
                         )}

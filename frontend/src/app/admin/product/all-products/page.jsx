@@ -314,7 +314,7 @@ export default function AllProductsPage() {
                 setEditError(data?.message || "Failed to update product");
             }
         } catch (error) {
-            setEditError("Failed to update product. Please check your connection.");
+            setEditError(`Failed to update product (${error?.message || "network error"}). Check the connection and try again. If it keeps failing, remove the new photos and pick them again.`);
         } finally {
             setEditSaving(false);
         }
