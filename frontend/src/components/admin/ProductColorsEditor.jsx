@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { FiPlus, FiX } from "react-icons/fi";
-import ProductImageManager, { appendImagesToFormData, countNewFiles, itemsFromUrls } from "@/components/admin/ProductImageManager";
+import ProductImageManager, { appendImagesToFormData, countNewFiles, fileItem, itemsFromUrls } from "@/components/admin/ProductImageManager";
 
 // Product form section where the admin lists the colors a product is sold in.
 // Colors are independent of the sizes: the storefront shows them as swatches and
@@ -69,6 +69,8 @@ export default function ProductColorsEditor({ colors, onChange, disabled = false
     const [hex, setHex] = useState(DEFAULT_SWATCH);
     const [pickedByHand, setPickedByHand] = useState(false);
     const [error, setError] = useState("");
+    // Photos picked in the "new color" box, before Add is pressed.
+    const [pendingImages, setPendingImages] = useState([]);
 
     const handleName = (value) => {
         setName(value);
@@ -85,7 +87,11 @@ export default function ProductColorsEditor({ colors, onChange, disabled = false
         if (clean.length > MAX_COLOR_NAME) return setError(`Keep the name under ${MAX_COLOR_NAME} characters.`);
         if (colors.some((c) => sameName(c.name, clean))) return setError(`${clean} is already added.`);
         if (colors.length >= MAX_COLORS) return setError(`A product can have at most ${MAX_COLORS} colors.`);
-        onChange([...colors, { name: clean, hex, available: true, images: [] }]);
+        // Fresh items (and blob previews) for the color's own photo box: the new-color
+        // box revokes the previews of whatever leaves it, which is all of them now.
+        const images = pendingImages.map((i) => (i.kind === "file" ? fileItem(i.file) : i));
+        onChange([...colors, { name: clean, hex, available: true, images }]);
+        setPendingImages([]);
         setName("");
         setPickedByHand(false);
         setError("");
@@ -171,6 +177,8 @@ export default function ProductColorsEditor({ colors, onChange, disabled = false
                 </ul>
             )}
 
+            <div className="rounded-lg border border-dashed border-emerald-300 bg-emerald-50/40 p-2.5 sm:p-3">
+            <p className="text-xs sm:text-sm font-semibold text-gray-700 mb-2">{colors.length ? "Add another color" : "Add a color"}</p>
             <div className="flex flex-wrap items-end gap-2">
                 <div className="grow basis-40 min-w-0">
                     <label className="block text-[10px] sm:text-xs text-gray-500 mb-1">Color name</label>
@@ -207,20 +215,35 @@ export default function ProductColorsEditor({ colors, onChange, disabled = false
                         className="h-8 sm:h-9 w-12 p-0.5 border border-gray-300 rounded-lg bg-white cursor-pointer"
                     />
                 </div>
-                <button
-                    type="button"
-                    onClick={add}
-                    disabled={disabled}
-                    className="flex items-center gap-1 h-8 sm:h-9 px-3 rounded-lg bg-emerald-50 text-emerald-700 text-xs sm:text-sm font-semibold hover:bg-emerald-100 disabled:opacity-50"
-                >
-                    <FiPlus className="w-3 h-3 sm:w-4 sm:h-4" /> Add color
-                </button>
             </div>
+            {showPhotos && (
+                <ProductImageManager
+                    className="mt-2.5"
+                    label="Photos of this color (optional)"
+                    hint="You can also add or change them after adding the color."
+                    items={pendingImages}
+                    onChange={setPendingImages}
+                    max={10}
+                    showCoverBadge={false}
+                    compact
+                    disabled={disabled}
+                />
+            )}
+            <button
+                type="button"
+                onClick={add}
+                disabled={disabled}
+                className="mt-2.5 flex items-center gap-1 h-8 sm:h-9 px-3 rounded-lg bg-emerald-600 text-white text-xs sm:text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+            >
+                <FiPlus className="w-3 h-3 sm:w-4 sm:h-4" />
+                {pendingImages.length ? `Add color with ${pendingImages.length} photo${pendingImages.length === 1 ? "" : "s"}` : "Add color"}
+            </button>
             {error && (
                 <p role="alert" className="mt-1.5 text-[11px] sm:text-xs text-red-600">
                     {error}
                 </p>
             )}
+            </div>
         </div>
     );
 }
