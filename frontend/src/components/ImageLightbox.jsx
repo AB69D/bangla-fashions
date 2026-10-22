@@ -28,7 +28,9 @@ export default function ImageLightbox({ images, startIndex = 0, alt = "", onClos
         closeRef.current?.focus();
         return () => {
             document.body.style.overflow = prevOverflow;
-            openerRef.current?.focus?.();
+            // preventScroll: the opener may be a slide inside a scroll-snap track,
+            // and scrolling it into view would undo the slide the caller lands on.
+            openerRef.current?.focus?.({ preventScroll: true });
         };
     }, []);
 

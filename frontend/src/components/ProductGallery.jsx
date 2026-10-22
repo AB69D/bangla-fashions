@@ -36,6 +36,8 @@ export default function ProductGallery({ images, alt = "", autoSlide = false, in
     // Index the big-image popup is open on, null while it is closed. The slideshow
     // stays still behind it.
     const [zoomIndex, setZoomIndex] = useState(null);
+    // Slide to hand focus to once the popup has closed (see the effect below).
+    const refocusRef = useRef(null);
     const [inView, setInView] = useState(true);
     const [reducedMotion, setReducedMotion] = useState(false);
     // Bumped by every manual interaction so the countdown restarts even when the
@@ -171,6 +173,16 @@ export default function ProductGallery({ images, alt = "", autoSlide = false, in
         },
         [],
     );
+
+    // After the popup closes, focus the slide it ended on. Runs after the popup's
+    // own cleanup (which hands focus back to the slide that opened it), so this
+    // wins, and preventScroll keeps the track on the slide goTo just landed on.
+    useEffect(() => {
+        if (zoomIndex !== null || refocusRef.current === null) return;
+        const i = refocusRef.current;
+        refocusRef.current = null;
+        trackRef.current?.children[i]?.querySelector("button")?.focus({ preventScroll: true });
+    }, [zoomIndex]);
 
     // Warm the cache for the neighbours. Lazy images inside a horizontal scroller
     // are not fetched until they scroll into view, which would flash an empty
@@ -396,6 +408,7 @@ export default function ProductGallery({ images, alt = "", autoSlide = false, in
                 startIndex={zoomIndex}
                 alt={alt}
                 onClose={(last) => {
+                    refocusRef.current = last;
                     setZoomIndex(null);
                     // Land the slider on the photo the shopper ended on.
                     if (last !== index) goTo(last, { instant: true });
