@@ -21,6 +21,19 @@
 #   4. /healthz, /readyz -> backend liveness/readiness probes.
 #   5. everything else  -> Next.js frontend. This catch-all stays last.
 
+# HTTP/1.1 and HTTP/2 only, over TCP. HTTP/3 (QUIC, over UDP) is off on purpose:
+# on Bangladeshi 4G, iPhones on HTTP/3 stalled partway through every product
+# photo (~500 KB). Caddy logged "writing: timeout: no recent network activity"
+# and the phone showed broken images, while the same files loaded fine over
+# HTTP/2. With HTTP/3 off, Caddy stops advertising it (Alt-Svc). docker-compose
+# no longer publishes 443/udp either, so a phone that still remembers HTTP/3
+# is refused at once and drops back to TCP.
+{
+    servers {
+        protocols h1 h2
+    }
+}
+
 www.banglafashions.com {
     redir https://banglafashions.com{uri} permanent
 }

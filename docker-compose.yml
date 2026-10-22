@@ -92,7 +92,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "443:443/udp"
+      # No 443/udp: HTTP/3 is disabled in the Caddyfile (see the note there).
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

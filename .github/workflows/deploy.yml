@@ -200,6 +200,14 @@ jobs:
             rollback
           fi
 
+          # The Caddyfile is bind-mounted, so `up` does not recreate Caddy when
+          # only the file changed. Reload it so a Caddyfile edit takes effect.
+          # Graceful: open connections are not dropped. A config Caddy refuses
+          # leaves the old one running, so this is a warning, not a rollback.
+          if ! docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile; then
+            echo "::warning::caddy reload failed; Caddy is still running its previous config."
+          fi
+
           # ================================================================
           # Health gate
           #
