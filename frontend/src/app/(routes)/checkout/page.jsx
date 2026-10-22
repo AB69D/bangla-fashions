@@ -625,7 +625,8 @@ export default function CheckoutPage() {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-gray-800 truncate">{item.productName}</p>
-                                        <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                                        {/* Size and colour ("XS / Maroon"), so the shopper can see which one they are ordering. */}
+                                        <p className="text-xs text-gray-500">{item.weight ? `${item.weight} · ` : ""}Qty: {item.quantity}</p>
                                         {item.discountPercent > 0 ? (
                                             <div className="flex items-center gap-2">
                                                 <p className="text-xs text-gray-400 line-through">{symbol}{item.price * item.quantity}</p>
