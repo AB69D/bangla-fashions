@@ -103,7 +103,8 @@ export default function AllProductsPage() {
     const openEdit = (product) => {
         setEditError("");
         setEditGallery(itemsFromUrls(product.gallery));
-        setEditCover(itemsFromUrls(product.cover_image ? [product.cover_image] : []));
+        const initialCover = product.cover_image || listImage(product);
+        setEditCover(itemsFromUrls(initialCover ? [initialCover] : []));
         setEditShowEcom(product.showInEcommerce !== false);
         setEditWeights(
             (product.weights || []).map((w) => ({
@@ -512,6 +513,50 @@ export default function AllProductsPage() {
                             </button>
                         </div>
                         <form onSubmit={handleEdit}>
+                            {/* First step: Thumbnail / Cover Image (matches Create Product page) */}
+                            <div className="mb-4">
+                                {!catalog.ready ? (
+                                    <div className="h-28 rounded-lg bg-gray-100 animate-pulse" aria-hidden="true" />
+                                ) : productMode ? (
+                                    <>
+                                        <ProductImageManager
+                                            label="Product Photos (Thumbnail)"
+                                            hint="Shown as one slider for every size. The first photo is the main thumbnail/cover on cards."
+                                            items={editGallery}
+                                            onChange={setEditGallery}
+                                            max={10}
+                                            disabled={editSaving}
+                                        />
+                                        {editGallery.length === 0 && existingImageUrls(editModal.product).length > 0 && (
+                                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                                                <span>No gallery yet. The storefront is showing this product&apos;s cover and size photos instead.</span>
+                                                <button
+                                                    type="button"
+                                                    disabled={editSaving}
+                                                    onClick={() => setEditGallery(itemsFromUrls(existingImageUrls(editModal.product).slice(0, 10)))}
+                                                    className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-semibold hover:bg-emerald-100 disabled:opacity-50"
+                                                >
+                                                    Use these photos
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <ProductImageManager
+                                        label="Thumbnail / Cover Image"
+                                        hint="Main thumbnail photo shown on product cards, search results, and checkout. Click 'Replace' to upload a new thumbnail."
+                                        items={editCover}
+                                        onChange={setEditCover}
+                                        max={1}
+                                        showCoverBadge={false}
+                                        disabled={editSaving}
+                                    />
+                                )}
+                                {catalog.failed && (
+                                    <p className="mt-2 text-xs text-amber-600">Could not read the store&apos;s image setting, so the default per-size photo layout is shown.</p>
+                                )}
+                            </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
@@ -553,49 +598,6 @@ export default function AllProductsPage() {
                                         </span>
                                     </span>
                                 </label>
-                            </div>
-                            <div className="mb-4 border-t pt-4">
-                                <h4 className="text-sm font-semibold text-gray-800 mb-3">{productMode ? "Product Photos" : "Cover Image"}</h4>
-                                {!catalog.ready ? (
-                                    <div className="h-28 rounded-lg bg-gray-100 animate-pulse" aria-hidden="true" />
-                                ) : productMode ? (
-                                    <>
-                                        <ProductImageManager
-                                            label="Photos"
-                                            hint="Shown as one slider for every size. The first photo is the cover. Removing a photo deletes its file from the server when you save, unless one of the sizes also uses it."
-                                            items={editGallery}
-                                            onChange={setEditGallery}
-                                            max={10}
-                                            disabled={editSaving}
-                                        />
-                                        {editGallery.length === 0 && existingImageUrls(editModal.product).length > 0 && (
-                                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-                                                <span>No gallery yet. The storefront is showing this product&apos;s cover and size photos instead.</span>
-                                                <button
-                                                    type="button"
-                                                    disabled={editSaving}
-                                                    onClick={() => setEditGallery(itemsFromUrls(existingImageUrls(editModal.product).slice(0, 10)))}
-                                                    className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-semibold hover:bg-emerald-100 disabled:opacity-50"
-                                                >
-                                                    Use these photos
-                                                </button>
-                                            </div>
-                                        )}
-                                    </>
-                                ) : (
-                                    <ProductImageManager
-                                        label="Cover"
-                                        hint="Photos for each size are managed with the size below. Replacing or removing the cover deletes its file from the server when you save."
-                                        items={editCover}
-                                        onChange={setEditCover}
-                                        max={1}
-                                        showCoverBadge={false}
-                                        disabled={editSaving}
-                                    />
-                                )}
-                                {catalog.failed && (
-                                    <p className="mt-2 text-xs text-amber-600">Could not read the store&apos;s image setting, so the default per-size photo layout is shown.</p>
-                                )}
                             </div>
                             <div className="mb-4">
                                 <ProductColorsEditor colors={editColors} onChange={setEditColors} disabled={editSaving} productPhotos={productPhotoUrls(editModal.product)} />

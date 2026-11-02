@@ -220,7 +220,8 @@ export default function CreateProductPage() {
                     />
                 ) : (
                     <ProductImageManager
-                        label="Cover Image"
+                        label="Thumbnail / Cover Image"
+                        hint="Main thumbnail photo shown on product cards and search results."
                         items={coverItems}
                         onChange={setCoverItems}
                         max={1}
