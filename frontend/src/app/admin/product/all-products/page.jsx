@@ -504,193 +504,202 @@ export default function AllProductsPage() {
             )}
 
             {editModal.show && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto py-8">
-                    <div role="dialog" aria-modal="true" aria-labelledby="edit-product-title" className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4 my-8">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 id="edit-product-title" className="text-lg font-semibold text-gray-800">Edit Product</h3>
-                            <button type="button" onClick={closeEdit} aria-label="Close" className="p-2 hover:bg-gray-100 rounded-lg">
-                                <FiX className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <form onSubmit={handleEdit}>
-                            {/* First step: Thumbnail / Cover Image (matches Create Product page) */}
-                            <div className="mb-4">
-                                {!catalog.ready ? (
-                                    <div className="h-28 rounded-lg bg-gray-100 animate-pulse" aria-hidden="true" />
-                                ) : productMode ? (
-                                    <>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4 md:p-6">
+                    <div role="dialog" aria-modal="true" aria-labelledby="edit-product-title" className="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+                        <form onSubmit={handleEdit} className="flex flex-col h-full max-h-[92vh] overflow-hidden">
+                            {/* Sticky Header */}
+                            <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100 shrink-0 bg-white">
+                                <h3 id="edit-product-title" className="text-lg font-bold text-gray-800">Edit Product</h3>
+                                <button type="button" onClick={closeEdit} aria-label="Close" className="p-2 hover:bg-gray-100 text-gray-500 hover:text-gray-700 rounded-lg transition-colors">
+                                    <FiX className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            {/* Scrollable Body - Always starts at top so Thumbnail is immediately in view! */}
+                            <div className="overflow-y-auto p-5 sm:p-6 flex-1 space-y-4">
+                                {/* First step: Thumbnail / Cover Image (matches Create Product page) */}
+                                <div>
+                                    {!catalog.ready ? (
+                                        <div className="h-28 rounded-lg bg-gray-100 animate-pulse" aria-hidden="true" />
+                                    ) : productMode ? (
+                                        <>
+                                            <ProductImageManager
+                                                label="Product Photos (Thumbnail)"
+                                                hint="Shown as one slider for every size. The first photo is the main thumbnail/cover on cards."
+                                                items={editGallery}
+                                                onChange={setEditGallery}
+                                                max={10}
+                                                disabled={editSaving}
+                                            />
+                                            {editGallery.length === 0 && existingImageUrls(editModal.product).length > 0 && (
+                                                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                                                    <span>No gallery yet. The storefront is showing this product&apos;s cover and size photos instead.</span>
+                                                    <button
+                                                        type="button"
+                                                        disabled={editSaving}
+                                                        onClick={() => setEditGallery(itemsFromUrls(existingImageUrls(editModal.product).slice(0, 10)))}
+                                                        className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-semibold hover:bg-emerald-100 disabled:opacity-50"
+                                                    >
+                                                        Use these photos
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
                                         <ProductImageManager
-                                            label="Product Photos (Thumbnail)"
-                                            hint="Shown as one slider for every size. The first photo is the main thumbnail/cover on cards."
-                                            items={editGallery}
-                                            onChange={setEditGallery}
-                                            max={10}
+                                            label="Thumbnail / Cover Image"
+                                            hint="Main thumbnail photo shown on product cards, search results, and checkout. Click 'Replace' to upload a new thumbnail."
+                                            items={editCover}
+                                            onChange={setEditCover}
+                                            max={1}
+                                            showCoverBadge={false}
                                             disabled={editSaving}
                                         />
-                                        {editGallery.length === 0 && existingImageUrls(editModal.product).length > 0 && (
-                                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-                                                <span>No gallery yet. The storefront is showing this product&apos;s cover and size photos instead.</span>
-                                                <button
-                                                    type="button"
-                                                    disabled={editSaving}
-                                                    onClick={() => setEditGallery(itemsFromUrls(existingImageUrls(editModal.product).slice(0, 10)))}
-                                                    className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-semibold hover:bg-emerald-100 disabled:opacity-50"
-                                                >
-                                                    Use these photos
-                                                </button>
+                                    )}
+                                    {catalog.failed && (
+                                        <p className="mt-2 text-xs text-amber-600">Could not read the store&apos;s image setting, so the default per-size photo layout is shown.</p>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+                                        <input type="text" name="firstName" defaultValue={editModal.product.firstName} required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                                        <input type="text" name="lastName" defaultValue={editModal.product.lastName} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                                    <select name="category" defaultValue={editModal.product.category?._id} required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+                                        <option value="">Select Category</option>
+                                        {categories.map((cat) => (
+                                            <option key={cat._id} value={cat._id}>{cat.category_name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                    <textarea name="description" defaultValue={editModal.product.description} rows={4} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none resize-none" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Visibility</label>
+                                    <label className="flex items-start gap-3 p-3 border border-gray-300 rounded-lg bg-gray-50 cursor-pointer hover:bg-gray-100 transition">
+                                        <input
+                                            type="checkbox"
+                                            checked={editShowEcom}
+                                            onChange={(e) => setEditShowEcom(e.target.checked)}
+                                            className="mt-0.5 w-5 h-5 accent-emerald-600 shrink-0"
+                                        />
+                                        <span className="text-sm">
+                                            <span className="font-medium text-gray-800 block">Show on e-commerce storefront</span>
+                                            <span className="text-gray-500">
+                                                {editShowEcom
+                                                    ? "Visible to online shoppers and sellable at the POS."
+                                                    : "Hidden from the website — available at the POS terminal only."}
+                                            </span>
+                                        </span>
+                                    </label>
+                                </div>
+                                <div>
+                                    <ProductColorsEditor colors={editColors} onChange={setEditColors} disabled={editSaving} productPhotos={productPhotoUrls(editModal.product)} />
+                                </div>
+                                {editWeights.length > 0 && (
+                                    <div className="border-t pt-4">
+                                        <h4 className="text-sm font-semibold text-gray-800 mb-3">{productMode ? "Sizes · Stock, Price, SKU & Barcode" : "Sizes · Stock, Price, SKU, Barcode & Photos"}</h4>
+                                        {editWeights.length > 1 && (
+                                            <div className="mb-3 p-3 bg-emerald-50/60 border border-emerald-100 rounded-lg">
+                                                <p className="text-xs font-medium text-gray-700 mb-2">Same price for all sizes <span className="font-normal text-gray-500">(optional, or set each size below)</span></p>
+                                                <div className="flex flex-wrap items-end gap-2">
+                                                    <div className="w-28">
+                                                        <label className="block text-[10px] text-gray-500 mb-1">Price</label>
+                                                        <input type="number" min="0" value={bulkPrice} onChange={(e) => setBulkPrice(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white" placeholder="850" />
+                                                    </div>
+                                                    <div className="w-28">
+                                                        <label className="block text-[10px] text-gray-500 mb-1">Cost</label>
+                                                        <input type="number" min="0" step="0.01" value={bulkCost} onChange={(e) => setBulkCost(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white" placeholder="optional" />
+                                                    </div>
+                                                    <button type="button" onClick={applyBulkPrice} disabled={editSaving || (!bulkPrice.trim() && !bulkCost.trim())} className="h-[34px] px-3 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">Apply to all sizes</button>
+                                                </div>
                                             </div>
                                         )}
-                                    </>
-                                ) : (
-                                    <ProductImageManager
-                                        label="Thumbnail / Cover Image"
-                                        hint="Main thumbnail photo shown on product cards, search results, and checkout. Click 'Replace' to upload a new thumbnail."
-                                        items={editCover}
-                                        onChange={setEditCover}
-                                        max={1}
-                                        showCoverBadge={false}
-                                        disabled={editSaving}
-                                    />
-                                )}
-                                {catalog.failed && (
-                                    <p className="mt-2 text-xs text-amber-600">Could not read the store&apos;s image setting, so the default per-size photo layout is shown.</p>
-                                )}
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
-                                    <input type="text" name="firstName" defaultValue={editModal.product.firstName} required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                                    <input type="text" name="lastName" defaultValue={editModal.product.lastName} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" />
-                                </div>
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                                <select name="category" defaultValue={editModal.product.category?._id} required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
-                                    <option value="">Select Category</option>
-                                    {categories.map((cat) => (
-                                        <option key={cat._id} value={cat._id}>{cat.category_name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                                <textarea name="description" defaultValue={editModal.product.description} rows={4} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none resize-none" />
-                            </div>
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Visibility</label>
-                                <label className="flex items-start gap-3 p-3 border border-gray-300 rounded-lg bg-gray-50 cursor-pointer hover:bg-gray-100 transition">
-                                    <input
-                                        type="checkbox"
-                                        checked={editShowEcom}
-                                        onChange={(e) => setEditShowEcom(e.target.checked)}
-                                        className="mt-0.5 w-5 h-5 accent-emerald-600 shrink-0"
-                                    />
-                                    <span className="text-sm">
-                                        <span className="font-medium text-gray-800 block">Show on e-commerce storefront</span>
-                                        <span className="text-gray-500">
-                                            {editShowEcom
-                                                ? "Visible to online shoppers and sellable at the POS."
-                                                : "Hidden from the website — available at the POS terminal only."}
-                                        </span>
-                                    </span>
-                                </label>
-                            </div>
-                            <div className="mb-4">
-                                <ProductColorsEditor colors={editColors} onChange={setEditColors} disabled={editSaving} productPhotos={productPhotoUrls(editModal.product)} />
-                            </div>
-                            {editWeights.length > 0 && (
-                                <div className="mb-4 border-t pt-4">
-                                    <h4 className="text-sm font-semibold text-gray-800 mb-3">{productMode ? "Sizes · Stock, Price, SKU & Barcode" : "Sizes · Stock, Price, SKU, Barcode & Photos"}</h4>
-                                    {editWeights.length > 1 && (
-                                        <div className="mb-3 p-3 bg-emerald-50/60 border border-emerald-100 rounded-lg">
-                                            <p className="text-xs font-medium text-gray-700 mb-2">Same price for all sizes <span className="font-normal text-gray-500">(optional, or set each size below)</span></p>
-                                            <div className="flex flex-wrap items-end gap-2">
-                                                <div className="w-28">
-                                                    <label className="block text-[10px] text-gray-500 mb-1">Price</label>
-                                                    <input type="number" min="0" value={bulkPrice} onChange={(e) => setBulkPrice(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white" placeholder="850" />
-                                                </div>
-                                                <div className="w-28">
-                                                    <label className="block text-[10px] text-gray-500 mb-1">Cost</label>
-                                                    <input type="number" min="0" step="0.01" value={bulkCost} onChange={(e) => setBulkCost(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white" placeholder="optional" />
-                                                </div>
-                                                <button type="button" onClick={applyBulkPrice} disabled={editSaving || (!bulkPrice.trim() && !bulkCost.trim())} className="h-[34px] px-3 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">Apply to all sizes</button>
-                                            </div>
-                                        </div>
-                                    )}
-                                    <div className="space-y-3">
-                                        {editWeights.map((w, index) => (
-                                            <div key={w._key ?? index} className="bg-gray-50 border rounded-lg p-3">
-                                                {w._new && (
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <span className="text-xs font-medium text-gray-600">New size</span>
-                                                        <button type="button" onClick={() => removeNewEditWeight(index)} disabled={editSaving} className="text-red-500 hover:text-red-600 disabled:opacity-50" aria-label="Remove this new size">
-                                                            <FiTrash2 className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                )}
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                                                    <div>
-                                                        <label className="block text-[10px] text-gray-500 mb-1">Weight</label>
-                                                        <input type="text" value={w.weight} onChange={(e) => updateEditWeight(index, "weight", e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-[10px] text-gray-500 mb-1">Stock</label>
-                                                        <input type="number" value={w.stock} onChange={(e) => updateEditWeight(index, "stock", e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-[10px] text-gray-500 mb-1">Price ($)</label>
-                                                        <input type="number" value={w.price} onChange={(e) => updateEditWeight(index, "price", e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-[10px] text-gray-500 mb-1">Cost ($)</label>
-                                                        <input type="number" value={w.costPrice} onChange={(e) => updateEditWeight(index, "costPrice", e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="for profit" />
-                                                    </div>
-                                                </div>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                                    <div>
-                                                        <label className="block text-[10px] text-gray-500 mb-1">SKU</label>
-                                                        <input type="text" value={w.sku} onChange={(e) => updateEditWeight(index, "sku", e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="auto if blank" />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-[10px] text-gray-500 mb-1">Barcode</label>
-                                                        <div className="flex gap-1.5">
-                                                            <input type="text" value={w.barcode} onChange={(e) => updateEditWeight(index, "barcode", e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="auto if blank" />
-                                                            <button type="button" onClick={() => updateEditWeight(index, "barcode", genBarcodePreview(index))} title="Generate a barcode" className="shrink-0 px-2.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100">Gen</button>
+                                        <div className="space-y-3">
+                                            {editWeights.map((w, index) => (
+                                                <div key={w._key ?? index} className="bg-gray-50 border rounded-lg p-3">
+                                                    {w._new && (
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <span className="text-xs font-medium text-gray-600">New size</span>
+                                                            <button type="button" onClick={() => removeNewEditWeight(index)} disabled={editSaving} className="text-red-500 hover:text-red-600 disabled:opacity-50" aria-label="Remove this new size">
+                                                                <FiTrash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                                                        <div>
+                                                            <label className="block text-[10px] text-gray-500 mb-1">Weight</label>
+                                                            <input type="text" value={w.weight} onChange={(e) => updateEditWeight(index, "weight", e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] text-gray-500 mb-1">Stock</label>
+                                                            <input type="number" value={w.stock} onChange={(e) => updateEditWeight(index, "stock", e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] text-gray-500 mb-1">Price ($)</label>
+                                                            <input type="number" value={w.price} onChange={(e) => updateEditWeight(index, "price", e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] text-gray-500 mb-1">Cost ($)</label>
+                                                            <input type="number" value={w.costPrice} onChange={(e) => updateEditWeight(index, "costPrice", e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="for profit" />
                                                         </div>
                                                     </div>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                        <div>
+                                                            <label className="block text-[10px] text-gray-500 mb-1">SKU</label>
+                                                            <input type="text" value={w.sku} onChange={(e) => updateEditWeight(index, "sku", e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="auto if blank" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] text-gray-500 mb-1">Barcode</label>
+                                                            <div className="flex gap-1.5">
+                                                                <input type="text" value={w.barcode} onChange={(e) => updateEditWeight(index, "barcode", e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="auto if blank" />
+                                                                <button type="button" onClick={() => updateEditWeight(index, "barcode", genBarcodePreview(index))} title="Generate a barcode" className="shrink-0 px-2.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100">Gen</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {catalog.ready && !productMode && (
+                                                        <ProductImageManager
+                                                            className="mt-3"
+                                                            label={`Images for ${w.weight || "this size"}`}
+                                                            items={w.images}
+                                                            onChange={(next) => updateEditWeight(index, "images", next)}
+                                                            max={10}
+                                                            showCoverBadge={false}
+                                                            compact
+                                                            disabled={editSaving}
+                                                        />
+                                                    )}
                                                 </div>
-                                                {catalog.ready && !productMode && (
-                                                    <ProductImageManager
-                                                        className="mt-3"
-                                                        label={`Images for ${w.weight || "this size"}`}
-                                                        items={w.images}
-                                                        onChange={(next) => updateEditWeight(index, "images", next)}
-                                                        max={10}
-                                                        showCoverBadge={false}
-                                                        compact
-                                                        disabled={editSaving}
-                                                    />
-                                                )}
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
+                                        <button type="button" onClick={addEditWeight} disabled={editSaving} className="mt-3 flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700 disabled:opacity-50">
+                                            <FiPlus className="w-4 h-4" /> Add size
+                                        </button>
+                                        <p className="text-[11px] text-gray-400 mt-2">Leave SKU / barcode blank to auto-generate a scannable code on save. Saved sizes can&apos;t be removed here, because carts, orders and stock history refer to them.</p>
                                     </div>
-                                    <button type="button" onClick={addEditWeight} disabled={editSaving} className="mt-3 flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700 disabled:opacity-50">
-                                        <FiPlus className="w-4 h-4" /> Add size
-                                    </button>
-                                    <p className="text-[11px] text-gray-400 mt-2">Leave SKU / barcode blank to auto-generate a scannable code on save. Saved sizes can&apos;t be removed here, because carts, orders and stock history refer to them.</p>
-                                </div>
-                            )}
+                                )}
 
-                            {editError && (
-                                <p role="alert" className="mb-3 p-3 rounded-lg bg-red-50 text-red-700 border border-red-200 text-sm">{editError}</p>
-                            )}
-                            <div className="flex gap-3 justify-end">
-                                <button type="button" onClick={closeEdit} disabled={editSaving} className="px-4 py-2 border rounded-lg hover:bg-gray-100 disabled:opacity-50">Cancel</button>
-                                <button type="submit" disabled={editSaving || !catalog.ready} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-70">{editSaving ? "Saving..." : "Save Changes"}</button>
+                                {editError && (
+                                    <p role="alert" className="p-3 rounded-lg bg-red-50 text-red-700 border border-red-200 text-sm">{editError}</p>
+                                )}
+                            </div>
+
+                            {/* Sticky Footer */}
+                            <div className="flex gap-3 justify-end px-5 sm:px-6 py-4 border-t border-gray-100 bg-gray-50 shrink-0">
+                                <button type="button" onClick={closeEdit} disabled={editSaving} className="px-4 py-2 border rounded-lg hover:bg-gray-100 disabled:opacity-50 text-sm font-medium">Cancel</button>
+                                <button type="submit" disabled={editSaving || !catalog.ready} className="px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-70 text-sm font-medium shadow-sm transition-colors">
+                                    {editSaving ? "Saving..." : "Save Changes"}
+                                </button>
                             </div>
                         </form>
                     </div>
